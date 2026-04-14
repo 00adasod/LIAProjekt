@@ -35,4 +35,3 @@ Om användaren frågar något som inte finns i materialet:
 
 " + persona.md + kursmaterial 
 ````
-Hur gör vi om kursmaterial är en video och inte powerpoint?
