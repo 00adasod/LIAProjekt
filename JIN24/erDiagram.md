@@ -3,8 +3,8 @@ erDiagram
 
     USER {
         bigint id PK
-        string name
-        string email
+%%        string name
+%%        string email
         string entra_id
         string role
         datetime created_at
@@ -95,13 +95,13 @@ erDiagram
 %%        bigint course_id FK
     }
 
-    CONVERSATION {
-        bigint id PK
-        bigint user_id FK
-        bigint ai_character_id FK
-        text message
-        datetime timestamp
-    }
+%%    CONVERSATION {
+%%        bigint id PK
+%%        bigint user_id FK
+%%        bigint ai_character_id FK
+%%        text message
+%%        datetime timestamp
+%%    }
 
     EMAIL_NOTIFICATION {
         bigint id PK
