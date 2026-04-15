@@ -36,13 +36,92 @@ classDiagram
     AiController --> AiService
 
     
+    namespace service {
+        class UserService {
+            +User getOrCreateUser(String entraId)
+            +void assignUserToCourse(String entraId, Long courseId)
+            +List~Course~ getUserCourses(String entraId)
+            +boolean isUserAssignedToCourse(String entraId, Long courseId)
+        }
+        class CourseService {
+            +Course createCourse(Course course)
+            +Course getCourseById(Long courseId)
+            +List~Course~ getAllCourses()
+            +void addSectionToCourse(Long courseId, Section section)
+            +void enrollUser(String entraId, Long courseId)
+            +void completeCourse(String entraId, Long courseId)
+            +List~User~ getAllStudents
+        }
+        class EmailNotificationService{
+            +void sendRegistrationEmail(String entraId)
+            +void sendTestCompletedEmail(String entraId, Long courseId)
+            +void sendCourseCompletedEmail(String entraId, Long courseId)
+            +void sendEmailToCourse(Long courseId, String subject, String message)
+        }
+        class AiService{
+            +List<AiCharacter> getCharactersForCourse(Long courseId)
+
+            +String askQuestion(
+            String entraId,
+            Long courseId,
+            Long aiCharacterId,
+            String message
+            )
+            +String askQuestion(String entraId, Long SessionId, String message) ??? kanske spara sessionId i klassen
+            
+
+            -String loadPersona(String personaFile)
+
+            -String loadCourseMaterial(Long courseId)
+
+            -String buildPrompt(String persona, String material)
+        }
+        
+        class AiClientService {
+            -String endpoint
+            -String apiKey
+            -String deploymentName
+            -RestTemplate restTemplate
+
+            +String chat(String systemPrompt, String userMessage)
+
+            -String buildUrl()
+            -Map~String, Object~ buildRequest(String systemPrompt, String userMessage)
+            -HttpHeaders buildHeaders()
+            -String extractResponse(Map response)
+        }
+    }
     
+    namespace repository {
+        class Repositories
+    }
     
-%%    namespace model {
+    namespace controller {
+        class UserController{
+            +UserDto getCurrentUser()
+            +List~CourseDto~ getMyCourses()
+            +void enrollInCourse(Long courseId)
+        }
+        class CourseController{
+            +List~CourseDto~ getAllCourses()
+            +List~UserDto~ getCourseStudents(Long courseId)
+            +CourseDto getCourseById(Long courseId)
+            +CourseDto createCourse(CourseDto course)
+            +void addSection(Long courseId, SectionDto section)
+            +void completeCourse(Long courseId)
+        }
+        class AiController{
+            +String chat(ChatRequest request)
+            +List~AiCharacterDto~ getCharacters(Long courseId)
+            +String startSession(Long courseId, Long aiCharacterId)
+        }
+    }
+    
+    namespace model {
         class User {
             +Long id
             +String entraId
-            +String role
+%%            +String role
             +LocalDateTime createdAt
         }
 
@@ -119,6 +198,6 @@ classDiagram
             +LocalDateTime sent_at
             +String status
         }
-%%    }
+    }
     
 ```

@@ -3,10 +3,8 @@ erDiagram
 
     USER {
         bigint id PK
-%%        string name
-%%        string email
         string entra_id
-        string role
+%%        string role
         datetime created_at
     }
 
@@ -17,6 +15,11 @@ erDiagram
         datetime created_at
         string created_by
     }
+    
+%%    USER_COURSE {
+%%    bigint user_id PK
+%%    bigint course_id PK
+%%    }
 
     SECTION {
         bigint id PK
@@ -132,8 +135,8 @@ erDiagram
     COURSE ||--o{ COURSE_AI : has
     AI_CHARACTER ||--o{ COURSE_AI : has
     
-    USER ||--o{ CONVERSATION : sends
-    AI_CHARACTER ||--o{ CONVERSATION : responds
+%%    USER ||--o{ CONVERSATION : sends
+%%    AI_CHARACTER ||--o{ CONVERSATION : responds
 
     USER ||--o{ EMAIL_NOTIFICATION : receives
 
