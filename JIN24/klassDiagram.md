@@ -53,6 +53,19 @@ classDiagram
             +void completeCourse(String entraId, Long courseId)
             +List~User~ getAllStudents
         }
+        
+        class SectionService {
+            +Section createSection(Section section)
+            +Section createSection(String title, int orderIndex)
+            +void removeSection(Long sectionId)
+            +void addMaterial(Material material)
+            +void removeMaterial(Long materialId)
+            +void addTest(List~TestQuestion~ test)
+            +void addTestQuestion(TestQuestion testQuestion)
+            +void removeTestQuestion(Long testQuestionId)
+            +void updateTestQuestion(Long testQuestionId, TestQuestion testQuestion)
+        }
+        
         class EmailNotificationService{
             +void sendRegistrationEmail(String entraId)
             +void sendTestCompletedEmail(String entraId, Long courseId)
@@ -127,15 +140,15 @@ classDiagram
             +String description
             +LocalDateTime createdAt
             +String createdBy
-            +List<Section> sections
+            +List~Section~ sections
         }
 
         class Section {
             +Long id
             +String title
             +int orderIndex
-            +List<Material> material
-            +List<TestQuestion> test
+            +List~Material~ material
+            +List~TestQuestion~ test
         }
 
         class Material {
@@ -147,7 +160,7 @@ classDiagram
         class TestQuestion {
             +Long id
             +String questionText
-            +List<TestAnswer> answers
+            +List~TestAnswer~ answers
         }
         class TestAnswer {
             +Long id
