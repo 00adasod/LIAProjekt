@@ -48,6 +48,7 @@ classDiagram
             +Course getCourseById(Long courseId)
             +List~Course~ getAllCourses()
             +void addSectionToCourse(Long courseId, Section section)
+            +void deleteSectionFromCourse(Long courseId, Long sectionId)
             +void enrollUser(String entraId, Long courseId)
             +void completeCourse(String entraId, Long courseId)
             +List~User~ getAllStudents
@@ -61,12 +62,7 @@ classDiagram
         class AiService{
             +List<AiCharacter> getCharactersForCourse(Long courseId)
 
-            +String askQuestion(
-            String entraId,
-            Long courseId,
-            Long aiCharacterId,
-            String message
-            )
+            +String askQuestion(String entraId, Long courseId, Long aiCharacterId, String message)
             +String askQuestion(String entraId, Long SessionId, String message) ??? kanske spara sessionId i klassen
             
 
