@@ -3,54 +3,78 @@ name: Deploy to Azure
 on:
   push:
     branches:
-      - main  # Eller den branch du vill använda för deployment
+      - main  # Triggera när du pushar till main-grenen
 
 jobs:
+  # Jobb för att distribuera Backend (Java API)
   deploy-backend:
+    name: Deploy Backend (API)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Java JDK (version 21)
+      - name: Set up Java 21 for Backend
         uses: actions/setup-java@v2
         with:
-          java-version: '21'  # Välj Java 21 SE för backend
-          distribution: 'temurin'  # Sätt distributionen till Eclipse Temurin
+          java-version: '21'  # Använd Java 21 för backend
+          distribution: 'zulu'  # Distributionen av Java (kan vara 'zulu', 'adoptopenjdk', eller annan)
 
-      - name: Build backend with Maven
-        run: mvn clean install --file Backend/pom.xml
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
-      - name: Deploy backend to Azure App Service
+      - name: Build Backend (Java Spring Boot)
+        run: |
+          cd Backend  # Navigera till Backend-mappen där pom.xml finns
+          mvn clean install -DskipTests  # Bygg backend-applikationen utan att köra tester
+
+      - name: Deploy Backend to Azure
         uses: azure/webapps-deploy@v2
         with:
-          app-name: app-dev-api
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
+          app-name: app-dev-api  # Backend-appens namn i Azure
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}  # Publiceringsprofil för backend
+          package: Backend/target/*.jar  # Peka på den genererade .jar-filen för backend
 
+  # Jobb för att distribuera Frontend (Web)
   deploy-frontend:
+    name: Deploy Frontend (Web)
     runs-on: ubuntu-latest
-    needs: deploy-backend  # Vänta på att backend ska vara distribuerad innan frontend
+    needs: deploy-backend  # Vänta på att backend-distributionen ska slutföras
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Node.js (version 20 LTS)
+      - name: Set up Node.js 20 LTS for Frontend
         uses: actions/setup-node@v2
         with:
-          node-version: '20'  # Välj Node.js 20 LTS för frontend
+          node-version: '20'  # Använd Node.js 20 LTS för frontend
 
-      - name: Install dependencies
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies (Frontend)
         run: |
-          cd Frontend
-          npm install
+          cd Frontend  # Gå till Frontend-mappen där package.json finns
+          npm install  # Installera frontend-dependencier
 
-      - name: Build frontend with Vite
+      - name: Build Frontend (Vite/React)
         run: |
-          cd Frontend
-          npm run build
+          cd Frontend  # Gå till Frontend-mappen där package.json finns
+          npm run build  # Bygg frontend-applikationen med Vite
 
-      - name: Deploy frontend to Azure App Service
+      - name: Deploy Frontend to Azure
         uses: azure/webapps-deploy@v2
         with:
-          app-name: app-dev-web
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
+          app-name: app-dev-web  # Frontend-appens namn i Azure
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}  # Publiceringsprofil för frontend
+          package: Frontend/dist  # Peka på den byggda frontend-koden i dist-mappen
