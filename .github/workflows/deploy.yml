@@ -61,10 +61,14 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Install dependencies (Frontend)
-        run: npm install  # Installera frontend-dependencier
+        run: |
+          cd Frontend  # Gå till Frontend-mappen där package.json finns
+          npm install  # Installera frontend-dependencier
 
       - name: Build Frontend (Vite/React)
-        run: npm run build  # Bygg frontend-applikationen med Vite
+        run: |
+          cd Frontend  # Gå till Frontend-mappen där package.json finns
+          npm run build  # Bygg frontend-applikationen med Vite
 
       - name: Set up Azure Web App Deployment (Frontend)
         uses: azure/webapps-deploy@v2
