@@ -72,6 +72,11 @@ jobs:
           cd Frontend  # Gå till Frontend-mappen där package.json finns
           npm run build  # Bygg frontend-applikationen med Vite
 
+      # Felsökning: Verifiera byggoutputen
+      - name: List files in dist directory (debugging)
+        run: |
+          ls -la Frontend/dist  # Lista alla filer i dist-mappen
+
       - name: Deploy Frontend to Azure
         uses: azure/webapps-deploy@v2
         with:
