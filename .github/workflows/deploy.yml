@@ -6,6 +6,52 @@ on:
       - main  # Körs när kod pushas till main-grenen
 
 jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    # Setup Node.js 20 för frontend
+    - name: Set up Node.js 20
+      uses: actions/setup-node@v2
+      with:
+        node-version: '20'
+
+    # Installera serve globalt för att säkerställa att den finns på servern
+    - name: Install serve globally
+      run: npm install -g serve
+
+    # Cache Node.js beroenden för frontend
+    - name: Cache Node.js dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.npm
+          ~/.cache
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    # Installera frontend-beroenden (i rätt mapp)
+    - name: Install frontend dependencies
+      run: npm install
+      working-directory: ./Frontend  # Kör i frontend-mappen
+
+    # Bygg frontend (i rätt mapp)
+    - name: Build frontend
+      run: npm run build
+      working-directory: ./Frontend  # Kör i frontend-mappen
+
+    # Deploy frontend till Azure
+    - name: Deploy frontend to Azure
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: app-dev-web  # Frontend App Service
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
+        package: ./Frontend/dist  # Vägen till byggmappen för frontend (dist)
+
   deploy-backend:
     runs-on: ubuntu-latest
 
@@ -46,45 +92,3 @@ jobs:
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}
         package: ./Backend  # Peka på hela backend-mappen för deploy
         slot-name: production  # Om du använder en slot för produktion
-
-  deploy-frontend:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-
-    # Setup Node.js 20 för frontend
-    - name: Set up Node.js 20
-      uses: actions/setup-node@v2
-      with:
-        node-version: '20'
-
-    # Cache Node.js beroenden för frontend
-    - name: Cache Node.js dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.npm
-          ~/.cache
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
-
-    # Installera frontend-beroenden (i rätt mapp)
-    - name: Install frontend dependencies
-      run: npm install
-      working-directory: ./Frontend  # Kör i frontend-mappen
-
-    # Bygg frontend (i rätt mapp)
-    - name: Build frontend
-      run: npm run build
-      working-directory: ./Frontend  # Kör i frontend-mappen
-
-    # Deploy frontend till Azure
-    - name: Deploy frontend to Azure
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: app-dev-web  # Frontend App Service
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}
-        package: ./Frontend/dist  # Vägen till byggmappen för frontend (dist)
