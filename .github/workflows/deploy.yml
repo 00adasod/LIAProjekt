@@ -75,4 +75,4 @@ jobs:
         with:
           app-name: app-dev-web  # Namnet på din frontend App Service i Azure
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_WEB }}  # Publiceringsprofil för frontend
-          package: ./Frontend/dist  # Peka på den byggda frontend-koden (standard Vite-produktionsoutput)
+          package: Frontend/dist  # Peka på den byggda frontend-koden (standard Vite-produktionsoutput)
