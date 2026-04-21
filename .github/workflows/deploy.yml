@@ -28,14 +28,16 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Build Backend (Java Spring Boot)
-        run: mvn clean install -DskipTests  # Bygg backend-applikationen utan att köra tester
+        run: |
+          cd Backend  # Gå till Backend-mappen där pom.xml finns
+          mvn clean install -DskipTests  # Bygg backend-applikationen utan att köra tester
 
       - name: Set up Azure Web App Deployment (Backend)
         uses: azure/webapps-deploy@v2
         with:
           app-name: app-dev-api  # Namnet på din backend App Service i Azure
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_API }}  # Publiceringsprofil för backend
-          package: target/*.jar  # Peka på den genererade .jar-filen från Maven-builden
+          package: Backend/target/*.jar  # Peka på den genererade .jar-filen i Backend-mappen
 
   deploy-frontend:
     name: Deploy Frontend (Web)
