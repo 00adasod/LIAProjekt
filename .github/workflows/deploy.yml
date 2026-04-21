@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     # Setup Java 21 för backend och specifika distribution (t.ex. zulu)
     - name: Set up Java 21 (Zulu)
