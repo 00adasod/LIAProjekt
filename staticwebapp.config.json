@@ -1,13 +1,7 @@
 {
   "routes": [
     {
-      "route": "/api/*",
-      "methods": [
-        "get"
-      ],
-      "allowedRoles": [
-        "authenticated"
-      ]
+      "route": "/api/*"
     }
   ]
 }
