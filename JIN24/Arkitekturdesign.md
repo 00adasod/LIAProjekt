@@ -2,6 +2,10 @@
 Spring Data JPA med Hibernate (Motivera)
 (Boolean i Java blir konverterat till BIT för Azure SQL)
 
+## Deployment-scripts
+I dev branchen testas bara koden och när dev mergas in till main testas, byggs till .jar och deployas det.
+Vi möter MOV i CI/CD på github actions
+
 ## Designa testmotorns låslogik.
 
 ### Regler för test och upplåsning:
