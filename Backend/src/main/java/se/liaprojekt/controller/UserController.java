@@ -1,5 +1,6 @@
 package se.liaprojekt.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -7,17 +8,17 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     @GetMapping("/me")
-    public String getCurrentUser() {
-        return "OK - getCurrentUser";
+    public ResponseEntity<String> getCurrentUser() {
+        return ResponseEntity.ok("OK - getCurrentUser");
     }
 
     @GetMapping("/me/courses")
-    public String getMyCourses() {
-        return "OK - getMyCourses";
+    public ResponseEntity<String> getMyCourses() {
+        return ResponseEntity.ok("OK - getMyCourses");
     }
 
     @PostMapping("/enroll/{courseId}")
-    public String enrollInCourse(@PathVariable Long courseId) {
-        return "OK - enrollInCourse " + courseId;
+    public ResponseEntity<String> enrollInCourse(@PathVariable Long courseId) {
+        return ResponseEntity.ok("OK - enrollInCourse " + courseId);
     }
 }

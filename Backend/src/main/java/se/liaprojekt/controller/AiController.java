@@ -1,5 +1,6 @@
 package se.liaprojekt.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -7,17 +8,17 @@ import org.springframework.web.bind.annotation.*;
 public class AiController {
 
     @PostMapping("/chat")
-    public String chat() {
-        return "OK - chat";
+    public ResponseEntity<String> chat() {
+        return ResponseEntity.ok("OK - chat");
     }
 
     @GetMapping("/characters/{courseId}")
-    public String getCharacters(@PathVariable Long courseId) {
-        return "OK - getCharacters " + courseId;
+    public ResponseEntity<String> getCharacters(@PathVariable Long courseId) {
+        return ResponseEntity.ok("OK - getCharacters " + courseId);
     }
 
     @PostMapping("/session")
-    public String startSession() {
-        return "OK - startSession";
+    public ResponseEntity<String> startSession() {
+        return ResponseEntity.ok("OK - startSession");
     }
 }
