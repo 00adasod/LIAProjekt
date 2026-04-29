@@ -120,7 +120,8 @@ classDiagram
         }
         class CourseController{
             +List~CourseDto~ getAllCourses()
-            +List~UserDto~ getCourseStudents(Long courseId)
+            +List~StudentResponse~ getCourseStudents(Long courseId)
+            +List~StudentResponse~ addStudentsToCourse(Long courseId List~StudentRequest~ students)
             +CourseDto getCourseById(Long courseId)
             +CourseDto createCourse(CourseDto course)
             +void addSection(Long courseId, SectionDto section)

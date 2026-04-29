@@ -1,6 +1,6 @@
 package se.liaprojekt.dto;
 
-public record StudentRespons(
+public record StudentResponse(
         Long id,
         String name
 ) {

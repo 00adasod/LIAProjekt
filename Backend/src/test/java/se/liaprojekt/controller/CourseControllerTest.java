@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import se.liaprojekt.dto.CourseRequest;
 import se.liaprojekt.dto.CourseResponse;
 import se.liaprojekt.dto.StudentRequest;
-import se.liaprojekt.dto.StudentRespons;
+import se.liaprojekt.dto.StudentResponse;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -100,12 +100,26 @@ class CourseControllerTest {
     }
 
     @Test
-    void getCourseStudents() {
+    void getCourseStudentsEmptyList() {
+        CourseResponse courseResponse = controller.createCourse(courseRequest1).getBody();
+        assertNotNull(courseResponse, "Course is null from createCourse");
 
+        ResponseEntity<List<StudentResponse>> students = controller.getCourseStudents(courseResponse.getId());
+        assertEquals(HttpStatus.OK, students.getStatusCode(), "Wrong status code");
+        assertNotNull(students.getBody(), "Student list is null");
+        assertTrue(students.getBody().isEmpty(), "Student list is not empty");
     }
 
     @Test
-    void addCourseStudent() {
+    void getCourseStudents() {
+        CourseResponse courseResponse = controller.createCourse(courseRequest1).getBody();
+        assertNotNull(courseResponse, "Course is null from createCourse");
+
+        //TODO
+    }
+
+    @Test
+    void addStudentsToCourse() {
         CourseResponse courseResponse = controller.createCourse(courseRequest1).getBody();
         assertNotNull(courseResponse, "Course is null from createCourse");
 
@@ -114,16 +128,16 @@ class CourseControllerTest {
             students.add(new StudentRequest(i+1L));
         }
 
-        ResponseEntity<String> responseEntity = controller.addCourseStudent(courseResponse.getId(), students);
+        ResponseEntity<String> responseEntity = controller.addStudentsToCourse(courseResponse.getId(), students);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode(), "Wrong status code");
 
-        ResponseEntity<List<StudentRespons>> studentResponsResponseEntity = controller.getCourseStudents(courseResponse.getId());
+        ResponseEntity<List<StudentResponse>> studentResponsResponseEntity = controller.getCourseStudents(courseResponse.getId());
         assertEquals(HttpStatus.OK, studentResponsResponseEntity.getStatusCode(), "Wrong status code");
-        List<StudentRespons> studentResponsList = studentResponsResponseEntity.getBody();
-        assertNotNull(studentResponsList, "Course is null from getCourseStudents");
-        assertEquals(10, studentResponsList.size(), "Course list is not the correct size");
+        List<StudentResponse> studentResponseList = studentResponsResponseEntity.getBody();
+        assertNotNull(studentResponseList, "Course is null from getCourseStudents");
+        assertEquals(10, studentResponseList.size(), "Course list is not the correct size");
         for (int i = 0; i < 10; i++) {
-            assertEquals(students.get(i).studentId(), studentResponsList.get(i).id(), "User id does not match");
+            assertEquals(students.get(i).studentId(), studentResponseList.get(i).id(), "User id does not match");
         }
     }
 
@@ -150,9 +164,11 @@ class CourseControllerTest {
 
     @Test
     void addSection() {
+        //TODO
     }
 
     @Test
     void completeCourse() {
+        //TODO
     }
 }
