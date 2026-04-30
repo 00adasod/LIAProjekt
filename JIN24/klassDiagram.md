@@ -114,9 +114,9 @@ classDiagram
     
     namespace controller {
         class UserController{
-            +UserDto getCurrentUser()
-            +List~CourseDto~ getMyCourses()
-            +void enrollInCourse(Long courseId)
+            +List<UserResponse> getAllUsers()
+            +UserResponse getCurrentUser()
+            +List~CourseResponse~ getMyCourses()
         }
         class CourseController{
             +List~CourseDto~ getAllCourses()

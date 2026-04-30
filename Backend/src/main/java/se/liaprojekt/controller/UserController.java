@@ -13,12 +13,9 @@ public class UserController {
     }
 
     @GetMapping("/me/courses")
-    public ResponseEntity<String> getMyCourses() {
-        return ResponseEntity.ok("OK - getMyCourses");
+    public ResponseEntity<List<CourseResponse>> getMyCourses() {
+        //TODO
+        return ResponseEntity.ok(List.of());
     }
 
-    @PostMapping("/enroll/{courseId}")
-    public ResponseEntity<String> enrollInCourse(@PathVariable Long courseId) {
-        return ResponseEntity.ok("OK - enrollInCourse " + courseId);
-    }
 }

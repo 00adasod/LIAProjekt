@@ -137,7 +137,7 @@ class CourseControllerTest {
         assertNotNull(userResponseList, "Course is null from getCourseStudents");
         assertEquals(10, userResponseList.size(), "Course list is not the correct size");
         for (int i = 0; i < 10; i++) {
-            assertEquals(students.get(i).studentId(), userResponseList.get(i).id(), "User id does not match");
+            assertEquals(students.get(i).id(), userResponseList.get(i).id(), "User id does not match");
         }
     }
 

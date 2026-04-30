@@ -1,8 +1,5 @@
 package se.liaprojekt.dto;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class UserResponse {
 
     private Long id;        // intern DB-id
