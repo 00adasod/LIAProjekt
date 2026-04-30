@@ -25,7 +25,9 @@ class UserControllerTest {
         ResponseEntity<List<UserResponse>> response =
                 controller.getAllUsers();
 
+        assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
+
         assertNotNull(response.getBody());
         assertEquals(0, response.getBody().size());
     }
@@ -35,10 +37,10 @@ class UserControllerTest {
         ResponseEntity<UserResponse> response =
                 controller.getCurrentUser();
 
+        assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
 
         assertNotNull(response.getBody());
-
         assertNotNull(response.getBody().id());
     }
 
@@ -50,6 +52,12 @@ class UserControllerTest {
         ResponseEntity<UserResponse> response2 =
                 controller.getCurrentUser();
 
+        assertNotNull(response1);
+        assertNotNull(response2);
+
+        assertNotNull(response1.getBody());
+        assertNotNull(response2.getBody());
+
         assertEquals(response1.getBody().id(), response2.getBody().id());
     }
 
@@ -58,7 +66,9 @@ class UserControllerTest {
         ResponseEntity<List<CourseResponse>> response =
                 controller.getMyCourses();
 
+        assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
+
         assertNotNull(response.getBody());
         assertEquals(0, response.getBody().size());
     }
