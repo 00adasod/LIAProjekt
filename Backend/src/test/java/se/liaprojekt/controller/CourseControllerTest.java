@@ -23,7 +23,7 @@ class CourseControllerTest {
     private static CourseRequest courseRequest3;
 
     @BeforeAll
-    static void setUpBeforeClass() throws Exception {
+    static void setUpBeforeClass() {
         courseRequest1 = new CourseRequest(1L, "TestCourse1", "This is the first test course");
         courseRequest2 = new CourseRequest(2L, "TestCourse2", "This is the second test course");
         courseRequest3 = new CourseRequest(3L, "TestCourse3", "This is the third test course");
