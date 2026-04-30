@@ -18,9 +18,14 @@ public class AiCharacter {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false)
     private String description;
-    private String systemPrompt;
+
+    @Column(nullable = false)
+    private String systemPromptUrl;
 
     @ManyToMany(mappedBy = "aiCharacters")
     private List<Course> courses;

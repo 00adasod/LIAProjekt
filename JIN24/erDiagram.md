@@ -81,7 +81,7 @@ erDiagram
         bigint id PK
         string name
         string description
-        text system_prompt
+        text system_prompt_url
     }
 
     EMAIL_NOTIFICATION {

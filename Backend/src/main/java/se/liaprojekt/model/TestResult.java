@@ -24,9 +24,14 @@ public class TestResult {
 
     @Column
     private Integer score;
+
+    @Column(nullable = false)
     private Boolean passed;
 
+    @Column(nullable = false)
     private LocalDateTime startedAt;
+
+    @Column
     private LocalDateTime completedAt;
 
     @ManyToOne

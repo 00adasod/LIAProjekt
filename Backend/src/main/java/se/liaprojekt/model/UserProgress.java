@@ -22,7 +22,10 @@ public class UserProgress {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private int completedSections;
+
+    @Column(nullable = false)
     private int progressPercentage;
 
     @ManyToOne

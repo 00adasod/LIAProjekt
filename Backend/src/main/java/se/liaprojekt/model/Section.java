@@ -25,6 +25,7 @@ public class Section {
     private int orderIndex;
 
     @ManyToOne
+    @JoinColumn(name = "course_id")
     private Course course;
 
     @OneToMany(mappedBy = "section", cascade = CascadeType.ALL)
