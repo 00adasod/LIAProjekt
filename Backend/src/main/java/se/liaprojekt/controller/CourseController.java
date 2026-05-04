@@ -45,12 +45,13 @@ public class CourseController {
     }
 
     @PostMapping("/{courseId}/sections")
-    public ResponseEntity<String> addSection(
+    public ResponseEntity<SectionResponse> addSection(
             @PathVariable Long courseId,
             @RequestBody SectionRequest request) {
 
-        sectionService.addSection(courseId, request.title());
-        return ResponseEntity.ok("Section created");
+        return ResponseEntity.ok(
+                sectionService.addSection(courseId, request.title())
+        );
     }
 
     @PostMapping("/{courseId}/complete")
