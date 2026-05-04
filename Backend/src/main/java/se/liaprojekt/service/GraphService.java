@@ -29,7 +29,7 @@ public class GraphService {
         String token = tokenService.getAccessToken(restTemplate);
 
         HttpHeaders headers = new HttpHeaders();
-        HttpEntity entity = new HttpEntity(headers);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
         headers.setBearerAuth(token);
         ResponseEntity<GraphAPIResponse> response = restTemplate.exchange(
                 graphBaseUrl + "/users",

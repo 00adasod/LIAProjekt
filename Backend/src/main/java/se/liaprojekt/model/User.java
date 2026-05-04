@@ -2,7 +2,6 @@ package se.liaprojekt.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import se.liaprojekt.dto.CourseResponse;
 
 import java.util.List;
 

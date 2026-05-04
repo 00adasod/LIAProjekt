@@ -3,11 +3,7 @@ package se.liaprojekt.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import se.liaprojekt.service.GraphService;
-import se.liaprojekt.service.TokenService;
 
-import java.util.Map;
 import se.liaprojekt.dto.CourseResponse;
 import se.liaprojekt.dto.UserResponse;
 import se.liaprojekt.service.UserService;
@@ -18,8 +14,6 @@ import java.util.List;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
-//    private final TokenService tokenService;
-//    private final GraphService graphService;
     private final UserService userService;
 
     @GetMapping("/all")
