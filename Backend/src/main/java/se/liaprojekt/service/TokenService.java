@@ -12,14 +12,14 @@ import org.springframework.web.client.RestTemplate;
 
 @Service
 public class TokenService {
-    @Value("${TENANT_ID}")
+    @Value("${TENANT-ID}")
     private String tenantId;
 
-    @Value("${CLIENT_ID}")
-    private String clientId;
-
-    @Value("${CLIENT_SECRET}")
-    private String clientSecret;
+//    @Value("${CLIENT_ID}")
+//    private String clientId;
+//
+//    @Value("${CLIENT_SECRET}")
+//    private String clientSecret;
 
 
     private TokenResponseBody tokenResponseBody;
@@ -39,8 +39,8 @@ public class TokenService {
         MultiValueMap<String, String> body =
                 new LinkedMultiValueMap<>();
 
-        body.add("client_id", clientId);
-        body.add("client_secret", clientSecret);
+//        body.add("client_id", clientId);
+//        body.add("client_secret", clientSecret);
         body.add(
                 "scope",
                 "https://graph.microsoft.com/.default"
