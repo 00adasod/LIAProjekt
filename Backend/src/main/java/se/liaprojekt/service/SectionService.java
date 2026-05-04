@@ -2,6 +2,7 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import se.liaprojekt.dto.SectionResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
 import se.liaprojekt.model.Section;
@@ -15,7 +16,7 @@ public class SectionService {
     private final SectionRepository sectionRepository;
     private final CourseRepository courseRepository;
 
-    public Section addSection(Long courseId, String title) {
+    public SectionResponse addSection(Long courseId, String title) {
 
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() ->
@@ -46,7 +47,17 @@ public class SectionService {
         section.setOrderIndex(nextIndex);
         section.setCourse(course);
 
-        return sectionRepository.save(section);
+        Section saved = sectionRepository.save(section);
+
+        return mapToResponse(saved);
     }
 
+    private SectionResponse mapToResponse(Section section) {
+        return new SectionResponse(
+                section.getId(),
+                section.getTitle(),
+                section.getOrderIndex(),
+                section.getCourse().getId()
+        );
+    }
 }
