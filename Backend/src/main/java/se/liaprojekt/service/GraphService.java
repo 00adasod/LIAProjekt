@@ -25,7 +25,7 @@ public class GraphService {
         this.restTemplate = new RestTemplate();
     }
 
-    public List<GraphResponse> getUsers() {
+    public List<GraphResponse> getAllUsers() {
         String token = tokenService.getAccessToken(restTemplate);
 
         HttpHeaders headers = new HttpHeaders();
@@ -40,6 +40,26 @@ public class GraphService {
 
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             return response.getBody().value();
+        } else {
+            //TODO throw appropriate exception when request fail
+        }
+
+        return null;
+    }
+
+    public GraphResponse getUserByEntraId(String entraId) {
+        String token = tokenService.getAccessToken(restTemplate);
+        HttpHeaders headers = new HttpHeaders();
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        headers.setBearerAuth(token);
+        ResponseEntity<GraphResponse> response = restTemplate.exchange(
+                graphBaseUrl + "/users/" + entraId,
+                HttpMethod.GET,
+                entity,
+                GraphResponse.class
+        );
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return response.getBody();
         } else {
             //TODO throw appropriate exception when request fail
         }

@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import se.liaprojekt.dto.GraphResponse;
 import se.liaprojekt.dto.UserResponse;
+import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.User;
 import se.liaprojekt.repository.UserRepository;
 
@@ -15,23 +16,25 @@ public class UserService {
     private final GraphService graphService;
     UserRepository userRepository;
 
+    public UserResponse getUserById(long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        GraphResponse graphResponse = graphService.getUserByEntraId(user.getEntraId());
+        UserResponse userResponse = mapToResponse(user, graphResponse);
+        return userResponse;
+    }
 
     public List<UserResponse> getAllUsers() {
-        List<GraphResponse> graphResponseList = graphService.getUsers();
+        List<GraphResponse> graphResponseList = graphService.getAllUsers();
         updateFromGraphAPI(graphResponseList);
 
+        //Create UserResponse
         List<UserResponse> userResponseList = new ArrayList<>();
         for (GraphResponse graphResponse : graphResponseList) {
             Optional<User> optionalUser = userRepository.findByEntraId(graphResponse.id());
             if (optionalUser.isPresent()) {
                 User user = optionalUser.get();
-                UserResponse userResponse = new UserResponse(
-                        user.getId(),
-                        graphResponse.displayName(),
-                        graphResponse.givenName(),
-                        graphResponse.surname(),
-                        graphResponse.mail()
-                );
+                UserResponse userResponse = mapToResponse(user, graphResponse);
                 userResponseList.add(userResponse);
             }
         }
@@ -63,5 +66,15 @@ public class UserService {
         return User.builder()
                 .entraId(graphResponse.id())
                 .build();
+    }
+
+    private UserResponse mapToResponse(User user, GraphResponse graphResponse) {
+        return new UserResponse(
+                user.getId(),
+                graphResponse.displayName(),
+                graphResponse.givenName(),
+                graphResponse.surname(),
+                graphResponse.mail()
+        );
     }
 }
