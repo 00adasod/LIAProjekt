@@ -1,5 +1,10 @@
 package se.liaprojekt.service;
 
+import com.azure.core.credential.TokenRequestContext;
+import com.azure.identity.DefaultAzureCredential;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.identity.ManagedIdentityCredential;
+import com.azure.identity.ManagedIdentityCredentialBuilder;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -20,6 +25,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.List;
 
 @Service
 public class TokenService {
@@ -36,48 +42,58 @@ public class TokenService {
     private TokenResponseBody tokenResponseBody;
     private long tokenExpiryTimeMillis;
 
+//    public String getAccessToken(RestTemplate restTemplate) {
+//        String url = "https://login.microsoftonline.com/" + tenantId + "/oauth2/v2.0/token";
+//
+//        //If a token has been saved, and it doesn't expire within the next minute return current token
+//        if (tokenResponseBody != null && tokenExpiryTimeMillis > System.currentTimeMillis() + 60000) {
+//            return tokenResponseBody.access_token;
+//        }
+//
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+//
+//        MultiValueMap<String, String> body =
+//                new LinkedMultiValueMap<>();
+//
+//        body.add("client_id", clientId);
+//        body.add("client_secret", clientSecret);
+//        body.add(
+//                "scope",
+//                "https://graph.microsoft.com/.default"
+//        );
+//        body.add(
+//                "grant_type",
+//                "client_credentials"
+//        );
+//
+//        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+//        try {
+//            ResponseEntity<TokenResponseBody> response = restTemplate.postForEntity(url, request, TokenResponseBody.class);
+//
+//            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+//                tokenResponseBody = response.getBody();
+//                tokenExpiryTimeMillis = System.currentTimeMillis() + tokenResponseBody.expires_in * 1000;
+//                return tokenResponseBody.access_token;
+//            } else {
+//                //TODO throw appropriate exception when request fail
+//            }
+//
+//            return response.getBody().access_token;
+//        } catch (Exception e) {
+//            throw new RuntimeException("tenantId: \n" + e.getMessage());
+//        }
+//
+//    }
+
     public String getAccessToken(RestTemplate restTemplate) {
-        String url = "https://login.microsoftonline.com/" + tenantId + "/oauth2/v2.0/token";
+        ManagedIdentityCredential credential = new ManagedIdentityCredentialBuilder()
+                .clientId(clientId)
+                .build();
+        TokenRequestContext tokenRequestContext = new TokenRequestContext();
+        tokenRequestContext.setScopes(List.of("https://graph.microsoft.com/.default"));
 
-        //If a token has been saved, and it doesn't expire within the next minute return current token
-        if (tokenResponseBody != null && tokenExpiryTimeMillis > System.currentTimeMillis() + 60000) {
-            return tokenResponseBody.access_token;
-        }
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        MultiValueMap<String, String> body =
-                new LinkedMultiValueMap<>();
-
-        body.add("client_id", clientId);
-        body.add("client_secret", clientSecret);
-        body.add(
-                "scope",
-                "https://graph.microsoft.com/.default"
-        );
-        body.add(
-                "grant_type",
-                "client_credentials"
-        );
-
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-        try {
-            ResponseEntity<TokenResponseBody> response = restTemplate.postForEntity(url, request, TokenResponseBody.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                tokenResponseBody = response.getBody();
-                tokenExpiryTimeMillis = System.currentTimeMillis() + tokenResponseBody.expires_in * 1000;
-                return tokenResponseBody.access_token;
-            } else {
-                //TODO throw appropriate exception when request fail
-            }
-
-            return response.getBody().access_token;
-        } catch (Exception e) {
-            throw new RuntimeException("tenantId: \n" + e.getMessage());
-        }
-
+        return credential.getToken(tokenRequestContext).block().getToken();
     }
 
 //    public String getAccessToken(RestTemplate restTemplate) {
