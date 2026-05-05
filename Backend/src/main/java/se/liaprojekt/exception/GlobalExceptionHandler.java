@@ -116,7 +116,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponse(
                         500,
-                        "Internal Server Error",
+                        "Internal Server Error: " + ex.getClass().getName(),
 //                        "Unexpected error occurred",
                         ex.getMessage(),
                         request.getRequestURI()
