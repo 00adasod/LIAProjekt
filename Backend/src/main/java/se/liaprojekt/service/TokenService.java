@@ -80,51 +80,51 @@ public class TokenService {
 //
 //    }
 
-    public String getAccessToken(RestTemplate restTemplate) {
-        String url = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://graph.microsoft.com/.default";
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("Metadata", "true");
-        ResponseEntity<TokenResponseBody> response = restTemplate.getForEntity(url, TokenResponseBody.class, headers);
-
-        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-            tokenResponseBody = response.getBody();
-            tokenExpiryTimeMillis = System.currentTimeMillis() + tokenResponseBody.expires_in * 1000;
-            return tokenResponseBody.access_token;
-        }
-        return null;
-    }
-
-//    public String getAccessToken() throws Exception {
-//        URL msiEndpoint = new URL("http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/");
-//        HttpURLConnection con = (HttpURLConnection) msiEndpoint.openConnection();
-//        con.setRequestMethod("GET");
-//        con.setRequestProperty("Metadata", "true");
+//    public String getAccessToken(RestTemplate restTemplate) {
+//        String url = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://graph.microsoft.com/.default";
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.add("Metadata", "true");
+//        ResponseEntity<TokenResponseBody> response = restTemplate.getForEntity(url, TokenResponseBody.class, headers);
 //
-//        if (con.getResponseCode()!=200) {
-//            throw new Exception("Error calling managed identity token endpoint.");
+//        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+//            tokenResponseBody = response.getBody();
+//            tokenExpiryTimeMillis = System.currentTimeMillis() + tokenResponseBody.expires_in * 1000;
+//            return tokenResponseBody.access_token;
 //        }
-//
-//        InputStream responseStream = con.getInputStream();
-//
-//        JsonFactory factory = new JsonFactory();
-//        JsonParser parser = factory.createParser(responseStream);
-//
-//        while(!parser.isClosed()){
-//            JsonToken jsonToken = parser.nextToken();
-//
-//            if(JsonToken.FIELD_NAME.equals(jsonToken)){
-//                String fieldName = parser.getCurrentName();
-//                jsonToken = parser.nextToken();
-//
-//                if("access_token".equals(fieldName)) {
-//                    String accesstoken = parser.getValueAsString();
-//                    System.out.println("Access Token: " + accesstoken.substring(0, 5) + "..." + accesstoken.substring(accesstoken.length() - 5));
-//                    return accesstoken;
-//                }
-//            }
-//        }
-//        return "";
+//        return null;
 //    }
+
+    public String getAccessToken() throws Exception {
+        URL msiEndpoint = new URL("http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://graph.microsoft.com/.default");
+        HttpURLConnection con = (HttpURLConnection) msiEndpoint.openConnection();
+        con.setRequestMethod("GET");
+        con.setRequestProperty("Metadata", "true");
+
+        if (con.getResponseCode()!=200) {
+            throw new Exception("Error calling managed identity token endpoint.");
+        }
+
+        InputStream responseStream = con.getInputStream();
+
+        JsonFactory factory = new JsonFactory();
+        JsonParser parser = factory.createParser(responseStream);
+
+        while(!parser.isClosed()){
+            JsonToken jsonToken = parser.nextToken();
+
+            if(JsonToken.FIELD_NAME.equals(jsonToken)){
+                String fieldName = parser.getCurrentName();
+                jsonToken = parser.nextToken();
+
+                if("access_token".equals(fieldName)) {
+                    String accesstoken = parser.getValueAsString();
+                    System.out.println("Access Token: " + accesstoken.substring(0, 5) + "..." + accesstoken.substring(accesstoken.length() - 5));
+                    return accesstoken;
+                }
+            }
+        }
+        return "";
+    }
 
 
     private record TokenResponseBody(String access_token, String token_type, long expires_in) {}
