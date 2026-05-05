@@ -27,12 +27,7 @@ public class GraphService {
     }
 
     public List<GraphResponse> getAllUsers() {
-        String token;
-        try {
-            token = tokenService.getAccessToken(restTemplate);
-        } catch (Exception e) {
-            throw new RuntimeException("Problem with access token \n" + e.getMessage());
-        }
+        String token = tokenService.getAccessToken(restTemplate);
 
         HttpHeaders headers = new HttpHeaders();
         HttpEntity<String> entity = new HttpEntity<>(headers);
