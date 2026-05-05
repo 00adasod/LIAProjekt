@@ -1,15 +1,18 @@
 package se.liaprojekt.service;
 
+import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
 import com.azure.identity.DefaultAzureCredential;
 import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.azure.identity.ManagedIdentityCredential;
 import com.azure.identity.ManagedIdentityCredentialBuilder;
+import com.azure.spring.cloud.autoconfigure.implementation.aad.security.graph.GraphClient;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -88,10 +91,12 @@ public class TokenService {
 
     public String getAccessToken(RestTemplate restTemplate) {
         ManagedIdentityCredential credential = new ManagedIdentityCredentialBuilder()
-                .clientId(clientId)
+//                .clientId(clientId)
                 .build();
         TokenRequestContext tokenRequestContext = new TokenRequestContext();
         tokenRequestContext.setScopes(List.of("https://graph.microsoft.com/.default"));
+
+
 
         return credential.getToken(tokenRequestContext).block().getToken();
     }
