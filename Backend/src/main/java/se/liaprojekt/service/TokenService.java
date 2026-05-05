@@ -26,11 +26,11 @@ public class TokenService {
     @Value("${spring.cloud.azure.tenant-id}")
     private String tenantId;
 
-//    @Value("${CLIENT_ID}")
-//    private String clientId;
-//
-//    @Value("${CLIENT_SECRET}")
-//    private String clientSecret;
+    @Value("${CLIENT_ID}")
+    private String clientId;
+
+    @Value("${CLIENT_SECRET}")
+    private String clientSecret;
 
 
     private TokenResponseBody tokenResponseBody;
@@ -50,8 +50,8 @@ public class TokenService {
         MultiValueMap<String, String> body =
                 new LinkedMultiValueMap<>();
 
-//        body.add("client_id", clientId);
-//        body.add("client_secret", clientSecret);
+        body.add("client_id", clientId);
+        body.add("client_secret", clientSecret);
         body.add(
                 "scope",
                 "https://graph.microsoft.com/.default"
@@ -75,7 +75,7 @@ public class TokenService {
 
             return response.getBody().access_token;
         } catch (Exception e) {
-            throw new RuntimeException("tenantId: " + tenantId + "\n" + e.getMessage());
+            throw new RuntimeException("tenantId: \n" + e.getMessage());
         }
 
     }
