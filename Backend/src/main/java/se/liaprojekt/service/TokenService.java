@@ -94,7 +94,7 @@ public class TokenService {
 //        return null;
 //    }
 
-    public String getAccessToken() throws Exception {
+    public String getAccessToken(RestTemplate restTemplate) throws Exception {
         URL msiEndpoint = new URL("http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://graph.microsoft.com/.default");
         HttpURLConnection con = (HttpURLConnection) msiEndpoint.openConnection();
         con.setRequestMethod("GET");
