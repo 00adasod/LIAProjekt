@@ -31,7 +31,7 @@ public class GraphService {
         try {
             token = tokenService.getAccessToken(restTemplate);
         } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
+            throw new RuntimeException("Problem with access token \n" + e.getMessage());
         }
 
         HttpHeaders headers = new HttpHeaders();
