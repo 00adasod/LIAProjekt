@@ -26,10 +26,10 @@ public class TokenService {
     @Value("${spring.cloud.azure.tenant-id}")
     private String tenantId;
 
-    @Value("${CLIENT_ID}")
+    @Value("${spring.cloud.azure.credential.client-id}")
     private String clientId;
 
-    @Value("${CLIENT_SECRET}")
+    @Value("${spring.cloud.azure.credential.client-secret}")
     private String clientSecret;
 
 
