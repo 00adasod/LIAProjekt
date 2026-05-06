@@ -9,7 +9,12 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(name = "answered_questions")
+@Table(
+        name = "answered_questions",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"question_id", "test_result_id"})
+        }
+)
 public class AnsweredQuestion {
 
     @Id

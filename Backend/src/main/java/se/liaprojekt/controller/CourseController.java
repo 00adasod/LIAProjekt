@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import se.liaprojekt.dto.*;
 import se.liaprojekt.service.CourseService;
 import se.liaprojekt.service.SectionService;
+import se.liaprojekt.service.CurrentUserService;
 
 import java.util.List;
 
@@ -16,6 +17,7 @@ public class CourseController {
 
     private final CourseService courseService;
     private final SectionService sectionService;
+    private final CurrentUserService currentUserService;
 
     @GetMapping
     public ResponseEntity<List<CourseResponse>> getAllCourses() {
@@ -51,6 +53,17 @@ public class CourseController {
 
         return ResponseEntity.ok(
                 sectionService.addSection(courseId, request.title())
+        );
+    }
+
+    @GetMapping("/{courseId}/sections")
+    public ResponseEntity<List<SectionResponse>> getSections(
+            @PathVariable Long courseId) {
+
+        String entraId = currentUserService.getEntraId();
+
+        return ResponseEntity.ok(
+                sectionService.getSections(courseId, entraId)
         );
     }
 

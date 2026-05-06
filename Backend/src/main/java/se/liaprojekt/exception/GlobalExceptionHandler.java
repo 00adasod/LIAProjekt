@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
     // 400
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(
-            IllegalArgumentException ex,
+            BadRequestException ex,
             HttpServletRequest request
     ) {
 
