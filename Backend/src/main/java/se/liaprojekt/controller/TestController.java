@@ -73,4 +73,15 @@ public class TestController {
                 testService.getQuestions(sectionId)
         );
     }
+
+    @GetMapping("/{sectionId}/attempts")
+    public ResponseEntity<List<TestResultResponse>> getAttempts(
+            @PathVariable Long sectionId
+    ) {
+        String entraId = currentUserService.getEntraId();
+
+        return ResponseEntity.ok(
+                testService.getAttempts(entraId, sectionId)
+        );
+    }
 }

@@ -34,6 +34,9 @@ public class TestResult {
     @Column
     private LocalDateTime completedAt;
 
+    @Column
+    private int attemptNumber;
+
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

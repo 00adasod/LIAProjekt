@@ -96,17 +96,24 @@ public class SectionService {
                         new ResourceNotFoundException("Previous section not found"));
 
         // =========================
-        // Kolla om user klarat testet (ENTRA ID)
+        // HÄMTA SENASTE ATTEMPT (VIKTIG FIX)
         // =========================
-        boolean previousCompleted = testResultRepository
-                .findByUser_EntraIdAndSectionId(entraId, previousSection.getId())
-                .map(result -> result.getStatus() == TestResult.Status.COMPLETED)
-                .orElse(false);
+        TestResult lastAttempt = testResultRepository
+                .findByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                        entraId,
+                        previousSection.getId()
+                )
+                .stream()
+                .findFirst()
+                .orElse(null);
 
         // =========================
-        // lås om inte klarat
+        // SECTION ÄR LÅST OM:
+        // - inget attempt finns
+        // - eller senaste attempt är INTE COMPLETED
         // =========================
-        return !previousCompleted;
+        return lastAttempt == null
+                || lastAttempt.getStatus() != TestResult.Status.COMPLETED;
     }
 
     // =========================

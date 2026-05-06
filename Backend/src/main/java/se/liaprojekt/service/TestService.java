@@ -11,7 +11,6 @@ import se.liaprojekt.repository.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -75,95 +74,84 @@ public class TestService {
     }
 
     // =========================
-    // START TEST
-    // =========================
+// START TEST (MULTI ATTEMPT)
+// =========================
     @Transactional
     public TestResultResponse startTest(String entraId, Long sectionId) {
 
         Section section = sectionRepository.findById(sectionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Section not found"));
 
-        User user =  userRepository.findByEntraId(entraId)
+        User user = userRepository.findByEntraId(entraId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         // =========================
-        // CHECK SECTION ACCESS (LOCK VALIDATION)
+        // LOCK CHECK (SECTION PROGRESSION)
         // =========================
         if (isSectionLocked(user, section)) {
-            throw new BadRequestException("Section is locked. Complete previous section first.");
+            throw new BadRequestException("Section is locked");
         }
 
         // =========================
-        // CHECK IF EXISTING TEST
+        // GET LATEST ATTEMPT
         // =========================
-        Optional<TestResult> existing = testResultRepository
-                .findByUser_EntraIdAndSectionId(entraId, sectionId);
+        TestResult lastAttempt = testResultRepository
+                .findByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(entraId, sectionId)
+                .stream()
+                .findFirst()
+                .orElse(null);
 
-        TestResult result;
-
-        if (existing.isPresent()) {
-
-            result = existing.get();
-
-            // =========================
-            // ALREADY PASSED → BLOCK RETRY
-            // =========================
-            if (result.getStatus() == TestResult.Status.COMPLETED) {
-                throw new BadRequestException("Test already completed and cannot be retaken");
-            }
-
-            // =========================
-            // FAILED → ALLOW RETRY (RESET)
-            // =========================
-            if (result.getStatus() == TestResult.Status.FAILED) {
-
-                result.setStatus(TestResult.Status.IN_PROGRESS);
-                result.setPassed(false);
-                result.setScore(null);
-                result.setCompletedAt(null);
-
-                result = testResultRepository.save(result);
-            }
-
-            // IN_PROGRESS → use existing result
-        } else {
-
-            // =========================
-            // FIRST TIME START
-            // =========================
-            result = new TestResult();
-            result.setUser(user);
-            result.setSection(section);
-            result.setStatus(TestResult.Status.IN_PROGRESS);
-            result.setPassed(false);
-
-            result = testResultRepository.save(result);
+        // =========================
+        // IF USER ALREADY COMPLETED → BLOCK RETRY
+        // =========================
+        if (lastAttempt != null
+                && lastAttempt.getStatus() == TestResult.Status.COMPLETED) {
+            throw new BadRequestException("Test already completed. Retry not allowed.");
         }
 
         // =========================
-        // RETURN DTO (ALWAYS CLEAN)
+        // DETERMINE NEXT ATTEMPT NUMBER
         // =========================
-        return new TestResultResponse(
-                result.getId(),
-                result.getStatus().name(),
-                result.getScore(),
-                result.isPassed(),
-                result.getStartedAt(),
-                result.getCompletedAt()
-        );
+        int nextAttempt = (lastAttempt == null)
+                ? 1
+                : lastAttempt.getAttemptNumber() + 1;
+
+        // =========================
+        // CREATE NEW ATTEMPT
+        // =========================
+        TestResult result = new TestResult();
+        result.setUser(user);
+        result.setSection(section);
+        result.setStatus(TestResult.Status.IN_PROGRESS);
+        result.setPassed(false);
+        result.setAttemptNumber(nextAttempt);
+
+        // =========================
+        // SAVE ATTEMPT
+        // =========================
+        result = testResultRepository.save(result);
+
+        return mapToResponse(result);
     }
 
     // =========================
-    // SUBMIT ANSWER
+    // SUBMIT ANSWER (MULTI ATTEMPT SAFE)
     // =========================
     @Transactional
     public void submitAnswer(Long testResultId, Long questionId, Long answerId) {
 
         // =========================
-        // FETCH TEST
+        // FETCH CURRENT ATTEMPT
         // =========================
         TestResult result = testResultRepository.findById(testResultId)
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found"));
+
+        // =========================
+        // SAFETY CHECK: ONLY ACTIVE ATTEMPTS CAN ACCEPT ANSWERS
+        // =========================
+        if (result.getStatus() != TestResult.Status.IN_PROGRESS) {
+            throw new BadRequestException("Cannot submit answers to a finished test attempt");
+        }
 
         // =========================
         // FETCH QUESTION
@@ -172,7 +160,7 @@ public class TestService {
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found"));
 
         // =========================
-        // CHECK IF ALREADY ANSWERED (FAST EXIT)
+        // PREVENT DUPLICATE ANSWERS PER ATTEMPT
         // =========================
         if (answeredQuestionRepository
                 .findByTestResult_IdAndQuestion_Id(testResultId, questionId)
@@ -181,7 +169,7 @@ public class TestService {
         }
 
         // =========================
-        // RESOLVE SELECTED ANSWER
+        // FIND SELECTED ANSWER
         // =========================
         TestAnswer selectedAnswer = question.getAnswers()
                 .stream()
@@ -193,82 +181,78 @@ public class TestService {
         // CREATE ANSWER ENTITY
         // =========================
         AnsweredQuestion answered = new AnsweredQuestion();
-        answered.setQuestion(question);
         answered.setTestResult(result);
+        answered.setQuestion(question);
         answered.setCorrect(selectedAnswer.getIsCorrect());
 
         // =========================
-        // SAVE WITH DB SAFETY NET
+        // SAVE ANSWER
         // =========================
-        try {
-            answeredQuestionRepository.save(answered);
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // race condition → ignore duplicate
-        }
+        answeredQuestionRepository.save(answered);
     }
 
     // =========================
-    // SUBMIT TEST
+    // SUBMIT TEST (MULTI-ATTEMPT)
     // =========================
     @Transactional
     public TestResultResponse submitTest(Long testResultId) {
 
-        // Hämta testresultatet (själva "test-sessionen")
+        // =========================
+        // HÄMTA TEST ATTEMPT
+        // =========================
         TestResult result = testResultRepository.findById(testResultId)
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found"));
 
-        // Hämta alla svar som användaren har lämnat i detta test
+        // =========================
+        // PREVENT DOUBLE SUBMIT
+        // =========================
+        if (result.getStatus() == TestResult.Status.COMPLETED) {
+            throw new BadRequestException("This attempt is already completed and cannot be resubmitted");
+        }
+
+        // =========================
+        // PREVENT SUBMIT ON FAILED (OPTIONAL SAFETY)
+        // =========================
+        if (result.getStatus() == TestResult.Status.FAILED) {
+            throw new BadRequestException("This attempt is already finished. Start a new attempt.");
+        }
+
+        // =========================
+        // HÄMTA ALLA SVAR FÖR DENNA ATTEMPT
+        // =========================
         List<AnsweredQuestion> answers =
                 answeredQuestionRepository.findByTestResult_Id(testResultId);
 
         // =========================
         // RÄKNA RÄTT SVAR
         // =========================
-        // Här filtrerar vi fram alla svar som är markerade som korrekta
         long correct = answers.stream()
                 .filter(AnsweredQuestion::isCorrect)
                 .count();
 
-        // Totalt antal frågor som användaren har svarat på
         int total = answers.size();
 
         // =========================
-        // BERÄKNA POÄNG (SCORE)
+        // BERÄKNA SCORE
         // =========================
-        // Score räknas som procent:
-        // (antal rätt / totalt antal frågor) * 100
-        //
-        // Exempel:
-        // 7 rätt av 10 → 70%
         int score = total == 0 ? 0 : (int) ((correct * 100.0) / total);
 
-        // Spara poängen i testresultatet
         result.setScore(score);
-
-        // Sätt när testet blev färdigställt
         result.setCompletedAt(LocalDateTime.now());
 
         // =========================
-        // BESTÄM OM TESTET ÄR GODKÄNT
+        // JUST NU 70% FÖR GODKÄNT
         // =========================
-        // Här är "kravet" för att klara testet
-        // Just nu: minst 70% rätt
         boolean passed = score >= 70;
-
         result.setPassed(passed);
 
         // =========================
-        // SÄTT STATUS BASERAT PÅ RESULTAT
+        // SÄTT FINAL STATUS
         // =========================
-        // Om godkänt → COMPLETED
-        // Om under krav → FAILED
         result.setStatus(
                 passed ? TestResult.Status.COMPLETED : TestResult.Status.FAILED
         );
 
-        // =========================
-        // SPARA RESULTATET
-        // =========================
         TestResult saved = testResultRepository.save(result);
 
         return mapToResponse(saved);
@@ -281,27 +265,36 @@ public class TestService {
                 result.getScore(),
                 result.isPassed(),
                 result.getStartedAt(),
-                result.getCompletedAt()
+                result.getCompletedAt(),
+                result.getAttemptNumber()
         );
     }
 
+    // =========================
+    // SECTION LOCK LOGIC
+    // =========================
     public boolean isSectionLocked(User user, Section section) {
 
-        if (section.getOrderIndex() == 0) {
-            return false;
-        }
+        if (section.getOrderIndex() == 0) return false;
 
         Section previous = sectionRepository
                 .findByCourseIdAndOrderIndex(
                         section.getCourse().getId(),
                         section.getOrderIndex() - 1
                 )
-                .orElseThrow(() -> new ResourceNotFoundException("Previous section not found"));
+                .orElseThrow();
 
-        return testResultRepository
-                .findByUser_EntraIdAndSectionId(user.getEntraId(), previous.getId())
-                .map(result -> result.getStatus() != TestResult.Status.COMPLETED)
-                .orElse(true); // om inget test finns = locked
+        TestResult lastAttempt = testResultRepository
+                .findByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                        user.getEntraId(),
+                        previous.getId()
+                )
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        return lastAttempt == null ||
+                lastAttempt.getStatus() != TestResult.Status.COMPLETED;
     }
 
     public List<TestQuestionResponse> getQuestions(Long sectionId) {
@@ -321,6 +314,36 @@ public class TestService {
                                 ))
                                 .toList()
                 ))
+                .toList();
+    }
+
+    // =========================
+    // GET ALL ATTEMPTS FOR SECTION
+    // =========================
+    @Transactional(readOnly = true)
+    public List<TestResultResponse> getAttempts(String entraId, Long sectionId) {
+
+        // =========================
+        // VALIDATE USER
+        // =========================
+        User user = userRepository.findByEntraId(entraId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        // =========================
+        // FETCH ALL ATTEMPTS (SORTED BY ATTEMPT NUMBER)
+        // =========================
+        List<TestResult> attempts =
+                testResultRepository
+                        .findByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                                entraId,
+                                sectionId
+                        );
+
+        // =========================
+        // MAP TO RESPONSE
+        // =========================
+        return attempts.stream()
+                .map(this::mapToResponse)
                 .toList();
     }
 }
