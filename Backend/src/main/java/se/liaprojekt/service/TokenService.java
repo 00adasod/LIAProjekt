@@ -29,14 +29,14 @@ import java.util.List;
 
 @Service
 public class TokenService {
-    @Value("${spring.cloud.azure.tenant-id}")
-    private String tenantId;
-
-    @Value("${spring.cloud.azure.credential.client-id}")
-    private String clientId;
-
-    @Value("${spring.cloud.azure.credential.client-secret}")
-    private String clientSecret;
+//    @Value("${spring.cloud.azure.tenant-id}")
+//    private String tenantId;
+//
+//    @Value("${spring.cloud.azure.credential.client-id}")
+//    private String clientId;
+//
+//    @Value("${spring.cloud.azure.credential.client-secret}")
+//    private String clientSecret;
 
 
     private TokenResponseBody tokenResponseBody;
