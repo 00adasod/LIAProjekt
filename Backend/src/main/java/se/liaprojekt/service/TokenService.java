@@ -2,10 +2,7 @@ package se.liaprojekt.service;
 
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
-import com.azure.identity.DefaultAzureCredential;
-import com.azure.identity.DefaultAzureCredentialBuilder;
-import com.azure.identity.ManagedIdentityCredential;
-import com.azure.identity.ManagedIdentityCredentialBuilder;
+import com.azure.identity.*;
 import com.azure.spring.cloud.autoconfigure.implementation.aad.security.graph.GraphClient;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
@@ -92,6 +89,7 @@ public class TokenService {
     public String getAccessToken(RestTemplate restTemplate) {
         ManagedIdentityCredential credential = new ManagedIdentityCredentialBuilder()
 //                .clientId(clientId)
+
                 .build();
         TokenRequestContext tokenRequestContext = new TokenRequestContext();
         tokenRequestContext.setScopes(List.of("https://graph.microsoft.com/.default"));
@@ -99,6 +97,17 @@ public class TokenService {
 
 
         return credential.getToken(tokenRequestContext).block().getToken();
+    }
+
+    private TokenCredential credential;
+
+    public TokenCredential getCredential() {
+        if (credential == null) {
+            credential = new DefaultAzureCredentialBuilder()
+                    .requireEnvVars(AzureIdentityEnvVars.AZURE_CLIENT_ID, AzureIdentityEnvVars.AZURE_CLIENT_SECRET, AzureIdentityEnvVars.AZURE_TENANT_ID)
+                    .build();
+        }
+        return credential;
     }
 
 //    public String getAccessToken(RestTemplate restTemplate) {
