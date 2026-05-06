@@ -2,11 +2,15 @@ package se.liaprojekt.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import se.liaprojekt.dto.CourseProgressResponse;
 import se.liaprojekt.dto.CourseRequest;
 import se.liaprojekt.dto.CourseResponse;
 import se.liaprojekt.exception.ResourceNotFoundException;
 import se.liaprojekt.model.Course;
+import se.liaprojekt.model.Section;
+import se.liaprojekt.model.TestResult;
 import se.liaprojekt.repository.CourseRepository;
+import se.liaprojekt.repository.TestResultRepository;
 
 import java.util.List;
 
@@ -66,6 +70,57 @@ public class CourseService {
                 course.getTitle(),
                 course.getDescription(),
                 course.getCreatedBy()
+        );
+    }
+
+    // =========================
+// GET COURSE PROGRESS
+// =========================
+    public CourseProgressResponse getCourseProgress(Long courseId, String entraId) {
+
+        // =========================
+        // FETCH COURSE
+        // =========================
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found"));
+
+        List<Section> sections = course.getSections();
+
+        int totalSections = sections.size();
+
+        // =========================
+        // COUNT COMPLETED SECTIONS
+        // =========================
+        int completedSections = (int) sections.stream()
+                .filter(section -> {
+
+                    TestResult lastAttempt = testResultRepository
+                            .findByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                                    entraId,
+                                    section.getId()
+                            )
+                            .stream()
+                            .findFirst()
+                            .orElse(null);
+
+                    return lastAttempt != null &&
+                            lastAttempt.getStatus() == TestResult.Status.COMPLETED;
+                })
+                .count();
+
+        // =========================
+        // CALCULATE %
+        // =========================
+        int progress = totalSections == 0
+                ? 0
+                : (int) ((completedSections * 100.0) / totalSections);
+
+        return new CourseProgressResponse(
+                course.getId(),
+                course.getTitle(),
+                totalSections,
+                completedSections,
+                progress
         );
     }
 }
