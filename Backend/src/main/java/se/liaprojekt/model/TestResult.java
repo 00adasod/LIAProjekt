@@ -26,13 +26,16 @@ public class TestResult {
     private Integer score;
 
     @Column(nullable = false)
-    private Boolean passed;
+    private boolean passed;
 
     @Column(nullable = false)
     private LocalDateTime startedAt;
 
     @Column
     private LocalDateTime completedAt;
+
+    @Column
+    private int attemptNumber;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
