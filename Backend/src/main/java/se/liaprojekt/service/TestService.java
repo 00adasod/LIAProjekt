@@ -21,6 +21,7 @@ public class TestService {
     private final TestQuestionRepository questionRepository;
     private final AnsweredQuestionRepository answeredQuestionRepository;
     private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
 
     @Transactional
@@ -140,11 +141,20 @@ public class TestService {
     @Transactional
     public void submitAnswer(Long testResultId, Long questionId, Long answerId) {
 
+        String entraId = currentUserService.getEntraId();
+
         // =========================
         // FETCH CURRENT ATTEMPT
         // =========================
         TestResult result = testResultRepository.findById(testResultId)
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found"));
+
+        // =========================
+        // SECURITY CHECK (OWNER CHECK)
+        // =========================
+        if (!result.getUser().getEntraId().equals(entraId)) {
+            throw new BadRequestException("Not allowed");
+        }
 
         // =========================
         // SAFETY CHECK: ONLY ACTIVE ATTEMPTS CAN ACCEPT ANSWERS
@@ -197,11 +207,20 @@ public class TestService {
     @Transactional
     public TestResultResponse submitTest(Long testResultId) {
 
+        String entraId = currentUserService.getEntraId();
+
         // =========================
         // HÄMTA TEST ATTEMPT
         // =========================
         TestResult result = testResultRepository.findById(testResultId)
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found"));
+
+        // =========================
+        // SECURITY CHECK (OWNER CHECK)
+        // =========================
+        if (!result.getUser().getEntraId().equals(entraId)) {
+            throw new BadRequestException("Not allowed");
+        }
 
         // =========================
         // PREVENT DOUBLE SUBMIT
@@ -271,8 +290,8 @@ public class TestService {
     }
 
     // =========================
-    // SECTION LOCK LOGIC
-    // =========================
+// SECTION LOCK LOGIC
+// =========================
     public boolean isSectionLocked(User user, Section section) {
 
         if (section.getOrderIndex() == 0) return false;
@@ -284,15 +303,19 @@ public class TestService {
                 )
                 .orElseThrow();
 
+        // =========================
+        // GET LATEST ATTEMPT
+        // =========================
         TestResult lastAttempt = testResultRepository
-                .findByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                .findTopByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
                         user.getEntraId(),
                         previous.getId()
                 )
-                .stream()
-                .findFirst()
                 .orElse(null);
 
+        // =========================
+        // LOCK IF NOT COMPLETED
+        // =========================
         return lastAttempt == null ||
                 lastAttempt.getStatus() != TestResult.Status.COMPLETED;
     }

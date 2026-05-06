@@ -19,6 +19,7 @@ import java.util.List;
 public class CourseService {
 
     private final CourseRepository courseRepository;
+    private final TestResultRepository testResultRepository;
 
     public List<CourseResponse> getAllCourses() {
         return courseRepository.findAll()
@@ -89,27 +90,31 @@ public class CourseService {
         int totalSections = sections.size();
 
         // =========================
-        // COUNT COMPLETED SECTIONS
+        // COUNT COMPLETED SECTIONS (BASED ON LAST ATTEMPT)
         // =========================
         int completedSections = (int) sections.stream()
                 .filter(section -> {
 
+                    // =========================
+                    // FETCH LAST ATTEMPT (IMPORTANT)
+                    // =========================
                     TestResult lastAttempt = testResultRepository
-                            .findByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                            .findTopByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
                                     entraId,
                                     section.getId()
                             )
-                            .stream()
-                            .findFirst()
                             .orElse(null);
 
+                    // =========================
+                    // SECTION IS COMPLETED ONLY IF LAST ATTEMPT IS COMPLETED
+                    // =========================
                     return lastAttempt != null &&
                             lastAttempt.getStatus() == TestResult.Status.COMPLETED;
                 })
                 .count();
 
         // =========================
-        // CALCULATE %
+        // CALCULATE PROGRESS %
         // =========================
         int progress = totalSections == 0
                 ? 0
