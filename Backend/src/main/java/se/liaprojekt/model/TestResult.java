@@ -26,7 +26,7 @@ public class TestResult {
     private Integer score;
 
     @Column(nullable = false)
-    private Boolean passed;
+    private boolean passed;
 
     @Column(nullable = false)
     private LocalDateTime startedAt;
