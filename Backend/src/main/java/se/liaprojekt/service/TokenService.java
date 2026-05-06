@@ -104,7 +104,7 @@ public class TokenService {
     public TokenCredential getCredential() {
         if (credential == null) {
             credential = new DefaultAzureCredentialBuilder()
-                    .requireEnvVars(AzureIdentityEnvVars.AZURE_CLIENT_ID, AzureIdentityEnvVars.AZURE_CLIENT_SECRET, AzureIdentityEnvVars.AZURE_TENANT_ID)
+//                    .requireEnvVars(AzureIdentityEnvVars.AZURE_CLIENT_ID, AzureIdentityEnvVars.AZURE_CLIENT_SECRET, AzureIdentityEnvVars.AZURE_TENANT_ID)
                     .build();
         }
         return credential;
