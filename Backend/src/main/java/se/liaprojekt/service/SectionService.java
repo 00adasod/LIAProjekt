@@ -10,7 +10,6 @@ import se.liaprojekt.model.TestResult;
 import se.liaprojekt.repository.CourseRepository;
 import se.liaprojekt.repository.SectionRepository;
 import se.liaprojekt.repository.TestResultRepository;
-import se.liaprojekt.repository.UserRepository;
 
 import java.util.List;
 
@@ -21,7 +20,6 @@ public class SectionService {
     private final SectionRepository sectionRepository;
     private final CourseRepository courseRepository;
     private final TestResultRepository testResultRepository;
-    private final UserRepository userRepository;
 
     public SectionResponse addSection(Long courseId, String title) {
 
