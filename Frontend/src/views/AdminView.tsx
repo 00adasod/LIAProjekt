@@ -1,4 +1,4 @@
-import { useState } from "react";
+import {useState} from "react";
 import type { User, UserRole } from "../types";
 import { USERS } from "../data";
 import { pad } from "../components/Shared";
@@ -16,7 +16,38 @@ const ROLE_CLS: Record<UserRole, string> = {
 };
 
 // async function fetchUsers(): Promise<User[]> {
-//     const response = await fetch
+//     const response = await fetch('/api/users/all');
+//     const data = await response.json();
+//     return data;
+// }
+
+// function UserList() {
+//     const [users, setUsers] = useState<User[]>([]);
+//     const [error, setError] = useState<string | null>(null);
+//     useEffect(() => {
+//         async function fetchData() {
+//             try {
+//                 const data = await fetchUsers();
+//                 setUsers(data);
+//             } catch (error) {
+//                 setError(error.message);
+//             }
+//         }
+//         fetchData();
+//     }, []);
+//     if (error) {
+//         return <div>Error: {error}</div>;
+//     }
+//     return (
+//         <div>
+//             {users.map((user) => (
+//                 <div key={user.id}>
+//                     <h2>{user.name}</h2>
+//                     <p>{user.email}</p>
+//                 </div>
+//             ))}
+//         </div>
+//     );
 // }
 
 export function AdminView() {
