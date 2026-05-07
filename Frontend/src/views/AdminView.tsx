@@ -1,7 +1,8 @@
-import {useState} from "react";
-import type { User, UserRole } from "../types";
-import { USERS } from "../data";
+import { useState, useEffect } from "react";
+import type { User, UserRole, UserResponse } from "../types";
 import { pad } from "../components/Shared";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const ROLE_LABELS: Record<UserRole, string> = {
     admin:       "Admin",
@@ -15,53 +16,98 @@ const ROLE_CLS: Record<UserRole, string> = {
     courseAdmin: "vmv-role vmv-role--courseAdmin",
 };
 
-// async function fetchUsers(): Promise<User[]> {
-//     const response = await fetch('/api/users/all');
-//     const data = await response.json();
-//     return data;
-// }
+// The API may send role strings that don't exactly match UserRole.
+// This normalises them so unknown values fall back to "student".
+function normaliseRole(raw: string): UserRole {
+    const map: Record<string, UserRole> = {
+        admin:       "admin",
+        Admin:       "admin",
+        student:     "student",
+        Student:     "student",
+        courseadmin: "courseAdmin",
+        courseAdmin: "courseAdmin",
+        CourseAdmin: "courseAdmin",
+    };
+    return map[raw] ?? "student";
+}
 
-// function UserList() {
-//     const [users, setUsers] = useState<User[]>([]);
-//     const [error, setError] = useState<string | null>(null);
-//     useEffect(() => {
-//         async function fetchData() {
-//             try {
-//                 const data = await fetchUsers();
-//                 setUsers(data);
-//             } catch (error) {
-//                 setError(error.message);
-//             }
-//         }
-//         fetchData();
-//     }, []);
-//     if (error) {
-//         return <div>Error: {error}</div>;
-//     }
-//     return (
-//         <div>
-//             {users.map((user) => (
-//                 <div key={user.id}>
-//                     <h2>{user.name}</h2>
-//                     <p>{user.email}</p>
-//                 </div>
-//             ))}
-//         </div>
-//     );
-// }
+// Transforms the raw API shape into the User shape our components expect
+function mapUser(u: UserResponse): User {
+    return {
+        id:              u.id,
+        name:            u.displayName,
+        email:           u.mail,
+        role:            normaliseRole(u.role),
+        coursesEnrolled: 0,   // not provided by the API; update when available
+    };
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
+function useUsers() {
+    const [users, setUsers]     = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError]     = useState<string | null>(null);
+
+    useEffect(() => {
+        // Replace this URL with your real API endpoint
+        fetch("http://localhost:8080/api/users/all")
+            .then((res) => {
+                if (!res.ok) throw new Error(`Server error: ${res.status}`);
+                return res.json() as Promise<UserResponse[]>;
+            })
+            .then((data) => setUsers(data.map(mapUser)))
+            .catch((err: Error) => setError(err.message))
+            .finally(() => setLoading(false));
+    }, []); // runs once on mount
+
+    return { users, loading, error };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function AdminView() {
-    const [search, setSearch]           = useState("");
-    const [roleFilter, setRoleFilter]   = useState<"all" | UserRole>("all");
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const { users, loading, error }             = useUsers();
+    const [search, setSearch]                   = useState("");
+    const [roleFilter, setRoleFilter]           = useState<"all" | UserRole>("all");
+    const [selectedUser, setSelectedUser]       = useState<User | null>(null);
 
-    const filtered = USERS.filter((u) => {
+    const filtered = users.filter((u) => {
         const matchRole   = roleFilter === "all" || u.role === roleFilter;
         const matchSearch =
             u.name.toLowerCase().includes(search.toLowerCase()) ||
             u.email.toLowerCase().includes(search.toLowerCase());
         return matchRole && matchSearch;
     });
+
+    // ── Loading state ─────────────────────────────────────────────────────────
+
+    if (loading) {
+        return (
+            <div className="vmv-fetch-state">
+                <div className="vmv-fetch-spinner" />
+                <span>Hämtar användare...</span>
+            </div>
+        );
+    }
+
+    // ── Error state ───────────────────────────────────────────────────────────
+
+    if (error) {
+        return (
+            <div className="vmv-fetch-state vmv-fetch-state--error">
+                <span>Kunde inte hämta användare: {error}</span>
+                <button
+                    className="vmv-quiz-start"
+                    onClick={() => window.location.reload()}
+                >
+                    Försök igen ↗
+                </button>
+            </div>
+        );
+    }
+
+    // ── Main render ───────────────────────────────────────────────────────────
 
     return (
         <>
@@ -89,7 +135,7 @@ export function AdminView() {
             </div>
 
             <div className="vmv-section-head" style={{ marginTop: "1.25rem" }}>
-                Registrerade användare — {filtered.length} av {USERS.length}
+                Registrerade användare — {filtered.length} av {users.length}
             </div>
 
             <div className="vmv-user-table">

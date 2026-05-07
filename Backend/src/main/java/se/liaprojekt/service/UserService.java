@@ -78,7 +78,8 @@ public class UserService {
                 graphResponse.displayName(),
                 graphResponse.givenName(),
                 graphResponse.surname(),
-                graphResponse.mail()
+                graphResponse.mail(),
+                "bob"
         );
     }
 }

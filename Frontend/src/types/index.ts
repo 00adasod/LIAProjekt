@@ -25,3 +25,13 @@ export interface User {
     role: UserRole;
     coursesEnrolled: number;
 }
+
+// Shape returned by the API — mirrors the Java UserResponse record exactly
+export interface UserResponse {
+    id: number;
+    displayName: string;
+    givenName: string;
+    surname: string;
+    mail: string;
+    role: string;
+}
