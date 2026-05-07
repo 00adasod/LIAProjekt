@@ -4,7 +4,7 @@ import "./LearningPortal.css";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Status = "in-progress" | "completed" | "not-started";
-type ViewKey = "courses" | "quizzes" | "stats" | "admin";
+type ViewKey = "courses" | "quizzes" | "admin";
 type FilterKey = "all" | Status;
 type UserRole = "admin" | "student" | "courseAdmin";
 
@@ -62,15 +62,14 @@ const USERS: User[] = [
 
 const FILTERS: { key: FilterKey; label: string }[] = [
     { key: "all",         label: "All"         },
-    { key: "in-progress", label: "In progress" },
-    { key: "completed",   label: "Completed"   },
-    { key: "not-started", label: "Not started" },
+    { key: "in-progress", label: "Pågående" },
+    { key: "completed",   label: "Klar"   },
+    { key: "not-started", label: "Inte startad" },
 ];
 
 const VIEWS: { key: ViewKey; label: string }[] = [
-    { key: "courses",  label: "All modules"   },
-    { key: "quizzes",  label: "Examinations"  },
-    { key: "stats",    label: "Statistics"    },
+    { key: "courses",  label: "Alla Kurser"   },
+    // { key: "quizzes",  label: "Examinations"  },
     { key: "admin",    label: "Admin"         },
 ];
 
@@ -132,15 +131,6 @@ function QuizRow({ quiz, index }: { quiz: Quiz; index: number }) {
     );
 }
 
-function StatCard({ value, label }: { value: string | number; label: string }) {
-    return (
-        <div className="vmv-stat">
-            <div className="vmv-stat-n">{value}</div>
-            <div className="vmv-stat-l">{label}</div>
-        </div>
-    );
-}
-
 // ── Views ─────────────────────────────────────────────────────────────────────
 
 function CoursesView() {
@@ -156,12 +146,6 @@ function CoursesView() {
 
     return (
         <>
-            {/*<div className="vmv-stats">*/}
-            {/*    <StatCard value={6}    label="Enrolled"        />*/}
-            {/*    <StatCard value={24}   label="Hours this month" />*/}
-            {/*    <StatCard value={8}    label="Quizzes passed"   />*/}
-            {/*    <StatCard value={5}    label="Day streak"       />*/}
-            {/*</div>*/}
 
             <div className="vmv-search">
                 <span className="vmv-search-icon">⌕</span>
@@ -218,23 +202,6 @@ function QuizzesView() {
     );
 }
 
-function StatsView() {
-    return (
-        <>
-            <div className="vmv-section-head">Your statistics</div>
-            <div className="vmv-stats">
-                <StatCard value={6}     label="Total courses"   />
-                <StatCard value={2}     label="Completed"       />
-                <StatCard value="82%"   label="Avg quiz score"  />
-                <StatCard value="24h"   label="Learned"         />
-            </div>
-            <p className="vmv-stats-note">
-                Detailed statistics coming in the next module release.
-            </p>
-        </>
-    );
-}
-
 function AdminView() {
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
@@ -262,19 +229,13 @@ function AdminView() {
 
     return (
         <>
-            {/*<div className="vmv-stats">*/}
-            {/*    <StatCard value={USERS.length}                                        label="Total users"    />*/}
-            {/*    <StatCard value={USERS.filter(u => u.status === "active").length}     label="Active"         />*/}
-            {/*    <StatCard value={USERS.filter(u => u.role === "student").length}      label="Students"       />*/}
-            {/*    <StatCard value={USERS.filter(u => u.role === "instructor").length}   label="Instructors"    />*/}
-            {/*</div>*/}
 
             <div className="vmv-admin-toolbar">
                 <div className="vmv-search" style={{ flex: 1, margin: 0 }}>
                     <span className="vmv-search-icon">⌕</span>
                     <input
                         type="text"
-                        placeholder="Search users..."
+                        placeholder="Sök användare..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
@@ -292,20 +253,16 @@ function AdminView() {
                 </div>
             </div>
 
-            <div className="vmv-section-head" style={{ marginTop: "1.25rem" }}>
-                Registered users — {filtered.length} of {USERS.length}
-            </div>
-
             <div className="vmv-user-table">
                 <div className="vmv-user-thead">
                     <span>#</span>
-                    <span>Name</span>
+                    <span>Namn</span>
                     <span>Email</span>
-                    <span>Role</span>
-                    <span>Courses</span>
+                    <span>Roll</span>
+                    <span>Kurser</span>
                 </div>
                 {filtered.length === 0 ? (
-                    <div className="vmv-empty" style={{ gridColumn: "1 / -1" }}>No users match your search.</div>
+                    <div className="vmv-empty" style={{ gridColumn: "1 / -1" }}>Inga användare matchar din sökning.</div>
                 ) : (
                     filtered.map((u) => (
                         <div
@@ -340,12 +297,12 @@ function AdminView() {
                         >✕</button>
                     </div>
                     <div className="vmv-user-detail-grid">
-                        <div><div className="vmv-user-detail-label">Role</div><div className="vmv-user-detail-val">{selectedUser.role}</div></div>
-                        <div><div className="vmv-user-detail-label">Courses enrolled</div><div className="vmv-user-detail-val">{selectedUser.coursesEnrolled}</div></div>
+                        <div><div className="vmv-user-detail-label">Roll</div><div className="vmv-user-detail-val">{selectedUser.role}</div></div>
+                        <div><div className="vmv-user-detail-label">Antal Kurser</div><div className="vmv-user-detail-val">{selectedUser.coursesEnrolled}</div></div>
                     </div>
                     <div className="vmv-user-detail-actions">
-                        <button className="vmv-quiz-start">Edit user ↗</button>
-                        <button className="vmv-quiz-start vmv-action--danger">Remove user ↗</button>
+                        <button className="vmv-quiz-start">Lägg till i kurs ↗</button>
+                        <button className="vmv-quiz-start vmv-action--danger">Ta bort från kurs ↗</button>
                     </div>
                 </div>
             )}
@@ -361,7 +318,6 @@ export default function LearningPortal() {
     const viewMap: Record<ViewKey, JSX.Element> = {
         courses:  <CoursesView  />,
         quizzes:  <QuizzesView  />,
-        stats:    <StatsView    />,
         admin:    <AdminView    />
     };
 
