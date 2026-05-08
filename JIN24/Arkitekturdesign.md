@@ -22,7 +22,7 @@ Det är samma steg för både dev- och main-branchen, men de deployas till olika
 
 ### Om användaren stänger webbläsaren:
 - Teststatus sparas som "pågående"
-- Testet kan återupptas vid nästa inloggning
+- Testet kan återupptas vid nästa inloggning så länge kursen finns
 - inga resultat registreras föränn alla frågar har blivit svarade
 
 ### Vid avklarat test
