@@ -2,7 +2,13 @@
   "routes": [
     {
       "route": "/api/*",
-      "allowedRoles": ["authenticated"]
+      "allowedRoles": [
+        "authenticated"
+      ]
+    },
+    {
+      "route": "/videos/*",
+      "rewrite": "video-endpoint-cfbtbpazgpepd0cm.z03.azurefd.net/videos/*"
     }
   ]
 }
