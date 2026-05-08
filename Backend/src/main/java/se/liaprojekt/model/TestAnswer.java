@@ -1,5 +1,6 @@
 package se.liaprojekt.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,6 +20,7 @@ public class TestAnswer {
     @Column(nullable = false)
     private String answerText;
 
+    @JsonProperty("correct")
     @Column(nullable = false)
     private Boolean isCorrect;
 
