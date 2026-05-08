@@ -16,7 +16,7 @@ Vi möter MOV i CI/CD på github actions
 
 ### Om användaren stänger webbläsaren:
 - Teststatus sparas som "pågående"
-- Testet kan återupptas vid nästa inloggning
+- Testet kan återupptas vid nästa inloggning så länge kursen finns
 - inga resultat registreras föränn alla frågar har blivit svarade
 
 ### Vid avklarat test
