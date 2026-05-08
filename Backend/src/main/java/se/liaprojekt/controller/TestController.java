@@ -3,10 +3,7 @@ package se.liaprojekt.controller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import se.liaprojekt.dto.SubmitAnswerRequest;
-import se.liaprojekt.dto.TestQuestionRequest;
-import se.liaprojekt.dto.TestQuestionResponse;
-import se.liaprojekt.dto.TestResultResponse;
+import se.liaprojekt.dto.*;
 import se.liaprojekt.service.CurrentUserService;
 import se.liaprojekt.service.TestService;
 
@@ -65,7 +62,7 @@ public class TestController {
     }
 
     // GET TEST QUESTIONS
-    @GetMapping("/sections/{sectionId}/questions")
+    @GetMapping("/{sectionId}/questions")
     public ResponseEntity<List<TestQuestionResponse>> getQuestions(
             @PathVariable Long sectionId) {
 

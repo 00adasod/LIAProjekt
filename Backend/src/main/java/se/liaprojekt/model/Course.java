@@ -3,6 +3,7 @@ package se.liaprojekt.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -28,7 +29,7 @@ public class Course {
 
     @OrderBy("orderIndex ASC")
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL)
-    private List<Section> sections;
+    private List<Section> sections = new ArrayList<>();
 
     @OneToMany(mappedBy = "course")
     private List<UserProgress> userProgress;
