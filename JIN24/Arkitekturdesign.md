@@ -1,6 +1,9 @@
 ## Välj ORM.
-Spring Data JPA med Hibernate (Motivera)
+Spring Data JPA med Hibernate
 (Boolean i Java blir konverterat till BIT för Azure SQL)
+
+## Frontend
+React och TypeScript
 
 ## Deployment-scripts
 I dev branchen testas bara koden och när dev mergas in till main testas, byggs till .jar och deployas det.
