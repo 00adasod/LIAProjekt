@@ -9,6 +9,9 @@ React och TypeScript
 I dev branchen testas bara koden och när dev mergas in till main testas, byggs till .jar och deployas det.
 Vi möter MOV i CI/CD på github actions
 
+Tester kör, sen byggs backend till en .jar och deployas till en, av MOV definierad, server. Frontend byggs sen och deployas till en, av MOV definierad, server
+Det är samma steg för både dev- och main-branchen, men de deployas till olika ställen.
+
 ## Designa testmotorns låslogik.
 
 ### Regler för test och upplåsning:
