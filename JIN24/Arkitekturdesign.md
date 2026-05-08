@@ -28,6 +28,7 @@ Vi möter MOV i CI/CD på github actions
 Användare hämtas från EntraId
 Användare registreras till kurs av admin
 En ny UserProgress, som är kopplad till både den specifika användaren och kursen, skapas.
+Denna fungerar som enrollment-entitet.
 
 ## AI session design
 #### Stateful:
