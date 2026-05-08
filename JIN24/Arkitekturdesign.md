@@ -12,7 +12,7 @@ Vi möter MOV i CI/CD på github actions
 - Ett avsnitt låses upp först när föregående test resultat är godkänt (om inte första avsnitt)
 - Test kan göras om vid underkänt resultat
 - Resultatet sparas automatiskt när testet avslutas
-- Godkänt resultat defineras som minst X procent rätt
+- Godkänt resultat defineras som minst 100 procent rätt
 
 ### Om användaren stänger webbläsaren:
 - Teststatus sparas som "pågående"
