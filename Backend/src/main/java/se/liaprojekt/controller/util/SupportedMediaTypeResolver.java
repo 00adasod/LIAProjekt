@@ -24,6 +24,10 @@ public class SupportedMediaTypeResolver {
         return SUPPORTED_EXTENSIONS.contains(getExtension(fileName));
     }
 
+    public boolean isVideo(String fileName) {
+        return Set.of("mp4", "mov", "avi", "mkv").contains(getExtension(fileName));
+    }
+
     public MediaType resolve(String fileName) {
         return EXTENSION_TYPE_MAP.getOrDefault(
                 getExtension(fileName),

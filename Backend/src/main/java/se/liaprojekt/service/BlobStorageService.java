@@ -1,11 +1,11 @@
 package se.liaprojekt.service;
 
-import com.azure.storage.blob.BlobClient;
-import com.azure.storage.blob.BlobClientBuilder;
-import com.azure.storage.blob.BlobContainerClient;
-import com.azure.storage.blob.BlobServiceClientBuilder;
+import com.azure.core.util.Context;
+import com.azure.storage.blob.*;
 import com.azure.storage.blob.models.BlobItem;
+import com.azure.storage.blob.models.BlobRange;
 import com.azure.storage.blob.models.BlobStorageException;
+import com.azure.storage.blob.models.DownloadRetryOptions;
 import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import com.azure.storage.common.StorageSharedKeyCredential;
@@ -16,63 +16,111 @@ import org.springframework.stereotype.Service;
 import se.liaprojekt.exception.BlobOperationException;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class BlobStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStorageService.class);
 
-    private final BlobContainerClient containerClient;
+    private final BlobContainerClient pdfContainerClient;
+    private final BlobContainerClient videoContainerClient;
+    private final StorageSharedKeyCredential sharedKeyCredential;
     private final String accountName;
-    private final String containerName;
+    private final String pdfContainerName;
+    private final String videoContainerName;
     private final long sasExpiryMinutes;
     private final String frontDoorEndpoint;
 
     public BlobStorageService(
             @Value("${spring.cloud.azure.storage.blob.account-name}") String accountName,
             @Value("${spring.cloud.azure.storage.account-key}") String accountKey,
-            @Value("${spring.cloud.azure.storage.container-name}") String containerName,
+            @Value("${spring.cloud.azure.storage.container-name-pdf}") String pdfContainerName,
+            @Value("${spring.cloud.azure.storage.container-name-video}") String videoContainerName,
             @Value("${spring.cloud.azure.storage.sas-expiry-minutes}") long sasExpiryMinutes,
             @Value("${spring.cloud.azure.storage.frontdoor-endpoint}") String frontDoorEndpoint) {
 
-        this.accountName = accountName;
-        this.containerName = containerName;
-        this.sasExpiryMinutes = sasExpiryMinutes;
-        this.frontDoorEndpoint = frontDoorEndpoint;
-        StorageSharedKeyCredential sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
 
-        this.containerClient = new BlobServiceClientBuilder()
+        if (!frontDoorEndpoint.startsWith("https://")) {
+            throw new IllegalStateException(
+                    "azure.storage.frontdoor-endpoint must be an absolute HTTPS URL, got: '%s'"
+                            .formatted(frontDoorEndpoint));
+        }
+
+        this.accountName = accountName;
+        this.pdfContainerName = pdfContainerName;
+        this.videoContainerName = videoContainerName;
+        this.sasExpiryMinutes = sasExpiryMinutes;
+        this.frontDoorEndpoint = frontDoorEndpoint.replaceAll("/+$", "");
+        this.sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+
+        BlobServiceClient serviceClient = new BlobServiceClientBuilder()
                 .endpoint("https://%s.blob.core.windows.net".formatted(accountName))
                 .credential(sharedKeyCredential)
-                .buildClient()
-                .getBlobContainerClient(containerName);
+                .buildClient();
 
-        if (!this.containerClient.exists()) {
+        this.pdfContainerClient = serviceClient.getBlobContainerClient(pdfContainerName);
+        this.videoContainerClient = serviceClient.getBlobContainerClient(videoContainerName);
+
+        validateContainer(pdfContainerClient, pdfContainerName);
+        validateContainer(videoContainerClient, videoContainerName);
+    }
+
+    private void validateContainer(BlobContainerClient client, String name) {
+        if (!client.exists()) {
             throw new IllegalStateException(
-                    "Container '%s' does not exist.".formatted(containerName));
+                    "Container '%s' does not exist.".formatted(name));
         }
     }
 
-    // Generates a SAS token scoped to a single blob with the given permissions
+    // Resolves the correct container client based on file extension
+    private BlobContainerClient resolveContainer(String fileName) {
+        String ext = getExtension(fileName);
+        return switch (ext) {
+            case "pdf"            -> pdfContainerClient;
+            case "mp4", "mov",
+                 "avi", "mkv"    -> videoContainerClient;
+            default -> throw new BlobOperationException(
+                    "Unsupported file type: " + ext, 400, "UnsupportedFileType");
+        };
+    }
+
+    // Resolves the correct container name based on file extension (for URL building)
+    private String resolveContainerName(String fileName) {
+        String ext = getExtension(fileName);
+        return switch (ext) {
+            case "pdf"            -> pdfContainerName;
+            case "mp4", "mov",
+                 "avi", "mkv"    -> videoContainerName;
+            default -> throw new BlobOperationException(
+                    "Unsupported file type: " + ext, 400, "UnsupportedFileType");
+        };
+    }
+
+    private String getExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return dot >= 0 ? fileName.substring(dot + 1).toLowerCase() : "";
+    }
+
     private String generateSasToken(String fileName, BlobSasPermission permissions) {
         BlobServiceSasSignatureValues sasValues = new BlobServiceSasSignatureValues(
                 OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(sasExpiryMinutes),
                 permissions)
-                .setStartTime(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(5)); // clock skew buffer
+                .setStartTime(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(5));
 
-        BlobClient blobClient = containerClient.getBlobClient(fileName);
-        return blobClient.generateSas(sasValues);
+        return resolveContainer(fileName).getBlobClient(fileName).generateSas(sasValues);
     }
 
-    // Builds a BlobClient from a pre-signed SAS URL — no credential needed on the client itself
     private BlobClient sasClient(String fileName, BlobSasPermission permissions) {
         String sasToken = generateSasToken(fileName, permissions);
+        String containerName = resolveContainerName(fileName);
         String sasUrl = "https://%s.blob.core.windows.net/%s/%s?%s"
                 .formatted(accountName, containerName, fileName, sasToken);
         return new BlobClientBuilder().endpoint(sasUrl).buildClient();
@@ -87,14 +135,21 @@ public class BlobStorageService {
         }
     }
 
-    // Builds a Front Door URL with a SAS token — client calls this directly
     public URI generateDownloadUrl(String fileName) {
         try {
             String sasToken = generateSasToken(
                     fileName, new BlobSasPermission().setReadPermission(true));
+            String containerName = resolveContainerName(fileName);
 
-            return URI.create("%s/%s/%s?%s"
-                    .formatted(frontDoorEndpoint, containerName, fileName, sasToken));
+            String rawUrl = "%s/%s/%s?%s"
+                    .formatted(frontDoorEndpoint, containerName, fileName, sasToken);
+
+            URI uri = URI.create(rawUrl);
+            if (!uri.isAbsolute()) {
+                throw new IllegalStateException(
+                        "Generated download URL is not absolute: '%s'.".formatted(rawUrl));
+            }
+            return uri;
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }
@@ -111,14 +166,43 @@ public class BlobStorageService {
 
     public List<String> listFiles(Set<String> allowedExtensions) {
         try {
-            return containerClient.listBlobs().stream()
-                    .map(BlobItem::getName)
-                    .filter(name -> {
-                        int dot = name.lastIndexOf('.');
-                        String ext = dot >= 0 ? name.substring(dot + 1).toLowerCase() : "";
-                        return allowedExtensions.contains(ext);
-                    })
+            Stream<String> pdfs = allowedExtensions.stream().anyMatch(e -> e.equals("pdf"))
+                    ? pdfContainerClient.listBlobs().stream().map(BlobItem::getName)
+                    : Stream.empty();
+
+            Stream<String> videos = allowedExtensions.stream().anyMatch(
+                    e -> Set.of("mp4", "mov", "avi", "mkv").contains(e))
+                    ? videoContainerClient.listBlobs().stream().map(BlobItem::getName)
+                    : Stream.empty();
+
+            return Stream.concat(pdfs, videos)
+                    .filter(name -> allowedExtensions.contains(getExtension(name)))
                     .collect(Collectors.toList());
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    public long getBlobSize(String fileName) {
+        try {
+            return resolveContainer(fileName)
+                    .getBlobClient(fileName)
+                    .getProperties()
+                    .getBlobSize();
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    public void streamFile(String fileName, OutputStream outputStream,
+                           long offset, long length) {
+        try {
+            BlobRange range = new BlobRange(offset, length);
+            DownloadRetryOptions retryOptions = new DownloadRetryOptions().setMaxRetryRequests(3);
+
+            resolveContainer(fileName)
+                    .getBlobClient(fileName)
+                    .downloadStreamWithResponse(outputStream, range, retryOptions, null, false, null, Context.NONE);
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }
