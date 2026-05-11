@@ -2,10 +2,8 @@ package se.liaprojekt.service;
 
 import com.azure.core.util.Context;
 import com.azure.storage.blob.*;
-import com.azure.storage.blob.models.BlobItem;
-import com.azure.storage.blob.models.BlobRange;
-import com.azure.storage.blob.models.BlobStorageException;
-import com.azure.storage.blob.models.DownloadRetryOptions;
+import com.azure.storage.blob.models.*;
+import com.azure.storage.blob.options.BlobParallelUploadOptions;
 import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import com.azure.storage.common.StorageSharedKeyCredential;
@@ -21,6 +19,7 @@ import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -126,10 +125,19 @@ public class BlobStorageService {
         return new BlobClientBuilder().endpoint(sasUrl).buildClient();
     }
 
-    public void uploadFile(String fileName, InputStream data, long length) {
+    public void uploadFile(String fileName, InputStream data,
+                           long length, String sectionId) {
         try {
-            sasClient(fileName, new BlobSasPermission().setWritePermission(true))
-                    .upload(data, length, true);
+            BlobClient client = sasClient(fileName,
+                    new BlobSasPermission()
+                            .setWritePermission(true)
+                            .setTagsPermission(true));
+
+            client.upload(data, length, true);
+
+            if (sectionId != null) {
+                client.setTags(Map.of("sectionId", sectionId));
+            }
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }
@@ -189,6 +197,47 @@ public class BlobStorageService {
                     .getBlobClient(fileName)
                     .getProperties()
                     .getBlobSize();
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    public List<String> listFilesBySectionId(String sectionId) {
+        try {
+            String query = "\"sectionId\" = '%s'".formatted(sectionId);
+
+            // Query runs across both containers and returns matching blob names
+            Stream<String> fromPdf = pdfContainerClient
+                    .findBlobsByTags(query).stream()
+                    .map(TaggedBlobItem::getName);
+
+            Stream<String> fromVideo = videoContainerClient
+                    .findBlobsByTags(query).stream()
+                    .map(TaggedBlobItem::getName);
+
+            return Stream.concat(fromPdf, fromVideo)
+                    .collect(Collectors.toList());
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    public Map<String, String> getFileTags(String fileName) {
+        try {
+            return resolveContainer(fileName)
+                    .getBlobClient(fileName)
+                    .getTags();
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    public void updateSectionId(String fileName, String sectionId) {
+        try {
+            BlobClient client = resolveContainer(fileName).getBlobClient(fileName);
+            Map<String, String> existing = client.getTags();
+            existing.put("sectionId", sectionId);
+            client.setTags(existing);
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }

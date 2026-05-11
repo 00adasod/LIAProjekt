@@ -1,5 +1,7 @@
 package se.liaprojekt.controller;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -13,12 +15,14 @@ import se.liaprojekt.service.BlobStorageService;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @RestController
 @RequestMapping("/api/files")
 public class BlobStorageController {
     private static final long CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
+    private static final Logger log = LoggerFactory.getLogger(BlobStorageService.class);
 
     private final BlobStorageService blobStorageService;
     private final SupportedMediaTypeResolver mediaTypeResolver;
@@ -30,17 +34,22 @@ public class BlobStorageController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<String> upload(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<String> upload(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(required = false) String sectionId) throws IOException {
+
         String fileName = file.getOriginalFilename();
+        log.info("Received fileName: '{}'", fileName);
         if (fileName == null || !mediaTypeResolver.isSupported(fileName)) {
             return ResponseEntity.badRequest()
                     .body("Unsupported file type. Allowed: pdf, mp4, mov, avi, mkv.");
         }
-        blobStorageService.uploadFile(fileName, file.getInputStream(), file.getSize());
+        blobStorageService.uploadFile(
+                fileName, file.getInputStream(), file.getSize(), sectionId);
         return ResponseEntity.ok("Uploaded: " + fileName);
     }
 
-    @GetMapping("/download/{fileName}")
+    @GetMapping("/download/{fileName:.+}")
     public ResponseEntity<Void> download(@PathVariable String fileName) {
         URI downloadUrl = blobStorageService.generateDownloadUrl(fileName);
         return ResponseEntity.status(HttpStatus.FOUND)
@@ -48,7 +57,7 @@ public class BlobStorageController {
                 .build();
     }
 
-    @DeleteMapping("/{fileName}")
+    @DeleteMapping("/{fileName:.+}")
     public ResponseEntity<String> delete(@PathVariable String fileName) {
         blobStorageService.deleteFile(fileName);
         return ResponseEntity.ok("Deleted: " + fileName);
@@ -61,7 +70,25 @@ public class BlobStorageController {
         return ResponseEntity.ok(blobStorageService.listFiles(extensions));
     }
 
-    @GetMapping("/stream/{fileName}")
+    @GetMapping("/list/section/{sectionId}")
+    public ResponseEntity<List<String>> listBySection(@PathVariable String sectionId) {
+        return ResponseEntity.ok(blobStorageService.listFilesBySectionId(sectionId));
+    }
+
+    @GetMapping("/{fileName:.+}/tags")
+    public ResponseEntity<Map<String, String>> getTags(@PathVariable String fileName) {
+        return ResponseEntity.ok(blobStorageService.getFileTags(fileName));
+    }
+
+    @PatchMapping("/{fileName:.+}/tags/section")
+    public ResponseEntity<String> updateSection(
+            @PathVariable String fileName,
+            @RequestParam String sectionId) {
+        blobStorageService.updateSectionId(fileName, sectionId);
+        return ResponseEntity.ok("Updated sectionId for: " + fileName);
+    }
+
+    @GetMapping("/stream/{fileName:.+}")
     public ResponseEntity<StreamingResponseBody> stream(
             @PathVariable String fileName,
             @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) {
