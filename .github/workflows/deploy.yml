@@ -1,4 +1,4 @@
-name: Deploy Full Stack V5
+name: Deploy Full Stack V8
 
 on:
   push:
