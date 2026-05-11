@@ -1,12 +1,9 @@
 package se.liaprojekt.service;
 
-import com.azure.core.credential.TokenCredential;
-import com.azure.core.util.Context;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobClientBuilder;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
-import com.azure.storage.blob.models.BlobDownloadResponse;
 import com.azure.storage.blob.models.BlobItem;
 import com.azure.storage.blob.models.BlobStorageException;
 import com.azure.storage.blob.sas.BlobSasPermission;
@@ -19,7 +16,6 @@ import org.springframework.stereotype.Service;
 import se.liaprojekt.exception.BlobOperationException;
 
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -33,7 +29,6 @@ public class BlobStorageService {
     private static final Logger log = LoggerFactory.getLogger(BlobStorageService.class);
 
     private final BlobContainerClient containerClient;
-    private final StorageSharedKeyCredential sharedKeyCredential;
     private final String accountName;
     private final String containerName;
     private final long sasExpiryMinutes;
@@ -50,7 +45,7 @@ public class BlobStorageService {
         this.containerName = containerName;
         this.sasExpiryMinutes = sasExpiryMinutes;
         this.frontDoorEndpoint = frontDoorEndpoint;
-        this.sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+        StorageSharedKeyCredential sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
 
         this.containerClient = new BlobServiceClientBuilder()
                 .endpoint("https://%s.blob.core.windows.net".formatted(accountName))

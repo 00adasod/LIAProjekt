@@ -1,8 +1,10 @@
 package se.liaprojekt.exception;
 
+import lombok.Getter;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ResponseStatus
+@Getter
 public class BlobOperationException extends RuntimeException {
 
     private final int statusCode;
@@ -13,7 +15,4 @@ public class BlobOperationException extends RuntimeException {
         this.statusCode = statusCode;
         this.azureErrorCode = azureErrorCode;
     }
-
-    public int getStatusCode() { return statusCode; }
-    public String getAzureErrorCode() { return azureErrorCode; }
 }
