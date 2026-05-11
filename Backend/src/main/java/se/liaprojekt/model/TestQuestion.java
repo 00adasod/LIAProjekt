@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -21,8 +22,8 @@ public class TestQuestion {
     @Column(nullable = false)
     private String questionText;
 
-    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL)
-    private List<TestAnswer> answers;
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TestAnswer> answers = new ArrayList<>();
 
     @ManyToOne
     @JoinColumn(name = "section_id", nullable = false)

@@ -21,10 +21,11 @@ public class TestService {
     private final TestQuestionRepository questionRepository;
     private final AnsweredQuestionRepository answeredQuestionRepository;
     private final UserRepository userRepository;
+    private final CurrentUserService currentUserService;
 
 
     @Transactional
-    public void createQuestion(Long sectionId, TestQuestionRequest request) {
+    public TestQuestion createQuestion(Long sectionId, TestQuestionRequest request) {
 
         // =========================
         // Hämta section
@@ -70,7 +71,7 @@ public class TestService {
         // =========================
         // Spara (cascade sparar answers automatiskt)
         // =========================
-        questionRepository.save(question);
+        return questionRepository.save(question);
     }
 
     // =========================
@@ -83,7 +84,11 @@ public class TestService {
                 .orElseThrow(() -> new ResourceNotFoundException("Section not found"));
 
         User user = userRepository.findByEntraId(entraId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseGet(() -> {
+                    User newUser = new User();
+                    newUser.setEntraId(entraId);
+                    return userRepository.save(newUser);
+                });
 
         // =========================
         // LOCK CHECK (SECTION PROGRESSION)
@@ -140,11 +145,20 @@ public class TestService {
     @Transactional
     public void submitAnswer(Long testResultId, Long questionId, Long answerId) {
 
+        String entraId = currentUserService.getEntraId();
+
         // =========================
         // FETCH CURRENT ATTEMPT
         // =========================
         TestResult result = testResultRepository.findById(testResultId)
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found"));
+
+        // =========================
+        // SECURITY CHECK (OWNER CHECK)
+        // =========================
+        if (!result.getUser().getEntraId().equals(entraId)) {
+            throw new BadRequestException("Not allowed");
+        }
 
         // =========================
         // SAFETY CHECK: ONLY ACTIVE ATTEMPTS CAN ACCEPT ANSWERS
@@ -156,7 +170,7 @@ public class TestService {
         // =========================
         // FETCH QUESTION
         // =========================
-        TestQuestion question = questionRepository.findById(questionId)
+        TestQuestion question = questionRepository.findByIdWithAnswers(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found"));
 
         // =========================
@@ -197,11 +211,20 @@ public class TestService {
     @Transactional
     public TestResultResponse submitTest(Long testResultId) {
 
+        String entraId = currentUserService.getEntraId();
+
         // =========================
         // HÄMTA TEST ATTEMPT
         // =========================
         TestResult result = testResultRepository.findById(testResultId)
                 .orElseThrow(() -> new ResourceNotFoundException("Test not found"));
+
+        // =========================
+        // SECURITY CHECK (OWNER CHECK)
+        // =========================
+        if (!result.getUser().getEntraId().equals(entraId)) {
+            throw new BadRequestException("Not allowed");
+        }
 
         // =========================
         // PREVENT DOUBLE SUBMIT
@@ -241,9 +264,9 @@ public class TestService {
         result.setCompletedAt(LocalDateTime.now());
 
         // =========================
-        // JUST NU 70% FÖR GODKÄNT
+        // JUST NU 100% FÖR GODKÄNT
         // =========================
-        boolean passed = score >= 70;
+        boolean passed = score >= 100;
         result.setPassed(passed);
 
         // =========================
@@ -271,8 +294,8 @@ public class TestService {
     }
 
     // =========================
-    // SECTION LOCK LOGIC
-    // =========================
+// SECTION LOCK LOGIC
+// =========================
     public boolean isSectionLocked(User user, Section section) {
 
         if (section.getOrderIndex() == 0) return false;
@@ -284,26 +307,28 @@ public class TestService {
                 )
                 .orElseThrow();
 
+        // =========================
+        // GET LATEST ATTEMPT
+        // =========================
         TestResult lastAttempt = testResultRepository
-                .findByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
+                .findTopByUser_EntraIdAndSectionIdOrderByAttemptNumberDesc(
                         user.getEntraId(),
                         previous.getId()
                 )
-                .stream()
-                .findFirst()
                 .orElse(null);
 
+        // =========================
+        // LOCK IF NOT COMPLETED
+        // =========================
         return lastAttempt == null ||
                 lastAttempt.getStatus() != TestResult.Status.COMPLETED;
     }
 
     public List<TestQuestionResponse> getQuestions(Long sectionId) {
 
-        Section section = sectionRepository.findById(sectionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Section not found"));
+        List<TestQuestion> questions = questionRepository.findBySectionId(sectionId);
 
-        return section.getTestQuestions()
-                .stream()
+        return questions.stream()
                 .map(q -> new TestQuestionResponse(
                         q.getId(),
                         q.getQuestionText(),
@@ -327,7 +352,11 @@ public class TestService {
         // VALIDATE USER
         // =========================
         User user = userRepository.findByEntraId(entraId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseGet(() -> {
+                    User u = new User();
+                    u.setEntraId(entraId);
+                    return userRepository.save(u);
+                });
 
         // =========================
         // FETCH ALL ATTEMPTS (SORTED BY ATTEMPT NUMBER)

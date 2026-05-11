@@ -86,4 +86,15 @@ public class CourseController {
         courseService.deleteCourse(courseId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/{courseId}/progress")
+    public ResponseEntity<CourseProgressResponse> getProgress(
+            @PathVariable Long courseId
+    ) {
+        String entraId = currentUserService.getEntraId();
+
+        return ResponseEntity.ok(
+                courseService.getCourseProgress(courseId, entraId)
+        );
+    }
 }

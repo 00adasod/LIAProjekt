@@ -1,10 +1,16 @@
 ## Välj ORM.
-Spring Data JPA med Hibernate (Motivera)
+Spring Data JPA med Hibernate
 (Boolean i Java blir konverterat till BIT för Azure SQL)
+
+## Frontend
+React och TypeScript
 
 ## Deployment-scripts
 I dev branchen testas bara koden och när dev mergas in till main testas, byggs till .jar och deployas det.
 Vi möter MOV i CI/CD på github actions
+
+Tester kör, sen byggs backend till en .jar och deployas till en, av MOV definierad, server. Frontend byggs sen och deployas till en, av MOV definierad, server
+Det är samma steg för både dev- och main-branchen, men de deployas till olika ställen.
 
 ## Designa testmotorns låslogik.
 
@@ -12,11 +18,11 @@ Vi möter MOV i CI/CD på github actions
 - Ett avsnitt låses upp först när föregående test resultat är godkänt (om inte första avsnitt)
 - Test kan göras om vid underkänt resultat
 - Resultatet sparas automatiskt när testet avslutas
-- Godkänt resultat defineras som minst X procent rätt
+- Godkänt resultat defineras som minst 100 procent rätt
 
 ### Om användaren stänger webbläsaren:
 - Teststatus sparas som "pågående"
-- Testet kan återupptas vid nästa inloggning
+- Testet kan återupptas vid nästa inloggning så länge kursen finns
 - inga resultat registreras föränn alla frågar har blivit svarade
 
 ### Vid avklarat test
@@ -28,6 +34,7 @@ Vi möter MOV i CI/CD på github actions
 Användare hämtas från EntraId
 Användare registreras till kurs av admin
 En ny UserProgress, som är kopplad till både den specifika användaren och kursen, skapas.
+Denna fungerar som enrollment-entitet.
 
 ## AI session design
 #### Stateful:
