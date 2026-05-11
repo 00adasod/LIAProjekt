@@ -3,7 +3,6 @@ package se.liaprojekt.service;
 import com.azure.core.util.Context;
 import com.azure.storage.blob.*;
 import com.azure.storage.blob.models.*;
-import com.azure.storage.blob.options.BlobParallelUploadOptions;
 import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import com.azure.storage.common.StorageSharedKeyCredential;
@@ -31,7 +30,6 @@ public class BlobStorageService {
 
     private final BlobContainerClient pdfContainerClient;
     private final BlobContainerClient videoContainerClient;
-    private final StorageSharedKeyCredential sharedKeyCredential;
     private final String accountName;
     private final String pdfContainerName;
     private final String videoContainerName;
@@ -58,7 +56,7 @@ public class BlobStorageService {
         this.videoContainerName = videoContainerName;
         this.sasExpiryMinutes = sasExpiryMinutes;
         this.frontDoorEndpoint = frontDoorEndpoint.replaceAll("/+$", "");
-        this.sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+        StorageSharedKeyCredential sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
 
         BlobServiceClient serviceClient = new BlobServiceClientBuilder()
                 .endpoint("https://%s.blob.core.windows.net".formatted(accountName))
