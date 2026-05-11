@@ -102,7 +102,6 @@ jobs:
           action: upload
           app_location: "Frontend"
           output_location: "dist"
-          skip_app_build: true
 
 
   deploy-backend-prod:
