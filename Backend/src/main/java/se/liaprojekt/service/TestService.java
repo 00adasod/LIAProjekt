@@ -25,7 +25,7 @@ public class TestService {
 
 
     @Transactional
-    public void createQuestion(Long sectionId, TestQuestionRequest request) {
+    public TestQuestion createQuestion(Long sectionId, TestQuestionRequest request) {
 
         // =========================
         // Hämta section
@@ -71,7 +71,7 @@ public class TestService {
         // =========================
         // Spara (cascade sparar answers automatiskt)
         // =========================
-        questionRepository.save(question);
+        return questionRepository.save(question);
     }
 
     // =========================
@@ -84,7 +84,11 @@ public class TestService {
                 .orElseThrow(() -> new ResourceNotFoundException("Section not found"));
 
         User user = userRepository.findByEntraId(entraId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseGet(() -> {
+                    User newUser = new User();
+                    newUser.setEntraId(entraId);
+                    return userRepository.save(newUser);
+                });
 
         // =========================
         // LOCK CHECK (SECTION PROGRESSION)
@@ -166,7 +170,7 @@ public class TestService {
         // =========================
         // FETCH QUESTION
         // =========================
-        TestQuestion question = questionRepository.findById(questionId)
+        TestQuestion question = questionRepository.findByIdWithAnswers(questionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found"));
 
         // =========================
@@ -260,9 +264,9 @@ public class TestService {
         result.setCompletedAt(LocalDateTime.now());
 
         // =========================
-        // JUST NU 70% FÖR GODKÄNT
+        // JUST NU 100% FÖR GODKÄNT
         // =========================
-        boolean passed = score >= 70;
+        boolean passed = score >= 100;
         result.setPassed(passed);
 
         // =========================
@@ -322,11 +326,9 @@ public class TestService {
 
     public List<TestQuestionResponse> getQuestions(Long sectionId) {
 
-        Section section = sectionRepository.findById(sectionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Section not found"));
+        List<TestQuestion> questions = questionRepository.findBySectionId(sectionId);
 
-        return section.getTestQuestions()
-                .stream()
+        return questions.stream()
                 .map(q -> new TestQuestionResponse(
                         q.getId(),
                         q.getQuestionText(),
@@ -350,7 +352,11 @@ public class TestService {
         // VALIDATE USER
         // =========================
         User user = userRepository.findByEntraId(entraId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseGet(() -> {
+                    User u = new User();
+                    u.setEntraId(entraId);
+                    return userRepository.save(u);
+                });
 
         // =========================
         // FETCH ALL ATTEMPTS (SORTED BY ATTEMPT NUMBER)
