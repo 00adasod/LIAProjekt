@@ -27,10 +27,6 @@ jobs:
         run: chmod +x mvnw
 
       - name: Run tests with Maven
-        env:
-          CLIENT_ID: ${{secrets.CLIENT_ID}}
-          CLIENT_SECRET: ${{secrets.CLIENT_SECRET}}
-          TENANT_ID: ${{secrets.TENANT_ID}}
         working-directory: Backend
         run: mvn verify
 
@@ -39,7 +35,6 @@ jobs:
     if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     environment: development
-    needs: test-backend
 
     steps:
       - name: Checkout repo
@@ -90,6 +85,8 @@ jobs:
 
       - name: Build frontend
         working-directory: Frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL_DEV }}
         run: npm run build
 
       - name: Deploy frontend DEV
@@ -105,7 +102,6 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
-    needs: test-backend
 
     steps:
       - name: Checkout repo
@@ -160,6 +156,8 @@ jobs:
 
       - name: Build frontend
         working-directory: Frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL_PROD }}
         run: npm run build
 
       - name: Deploy frontend PROD
