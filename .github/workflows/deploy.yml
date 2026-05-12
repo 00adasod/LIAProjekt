@@ -1,4 +1,4 @@
-name: Deploy Full Stack V8
+name: Deploy Full Stack V4
 
 on:
   push:
@@ -102,6 +102,7 @@ jobs:
           VITE_CLIENT_ID: ${{ secrets.VITE_CLIENT_ID }}
           VITE_TENANT_ID: ${{ secrets.VITE_TENANT_ID }}
           VITE_API_SCOPE: ${{ secrets.VITE_API_SCOPE }}
+          VITE_REDIRECT_URI: ${{ secrets.VITE_REDIRECT_URI }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           action: upload
