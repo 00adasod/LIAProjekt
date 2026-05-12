@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import se.liaprojekt.controller.util.SupportedMediaTypeResolver;
+import se.liaprojekt.exception.BadRequestException;
 import se.liaprojekt.service.BlobStorageService;
 
 import java.io.IOException;
@@ -52,7 +53,9 @@ public class BlobStorageController {
     // -------------------------------------------------------------------------
 
     /**
-     * Uploads a file to the appropriate Azure Blob Storage container.
+     * Uploads a file to Azure Blob Storage under a server-generated UUID filename.
+     * The caller receives the generated filename in the response and must use it
+     * for all subsequent operations (download, delete, tags).
      *
      * <p>Only PDF and video files are accepted. The container is determined
      * automatically from the file extension. If a {@code sectionId} is provided,
@@ -63,19 +66,23 @@ public class BlobStorageController {
      * @return 200 with filename on success, 400 if the file type is unsupported
      */
     @PostMapping("/upload")
-    public ResponseEntity<String> upload(
+    public ResponseEntity<Map<String, String>> upload(
             @RequestParam("file") MultipartFile file,
             @RequestParam(required = false) String sectionId) throws IOException {
 
-        String fileName = file.getOriginalFilename();
-        if (fileName == null || !mediaTypeResolver.isSupported(fileName)) {
-            return ResponseEntity.badRequest()
-                    .body("Unsupported file type. Allowed: pdf, mp4, mov, avi, mkv.");
+        String originalFileName = file.getOriginalFilename();
+        if (originalFileName == null || !mediaTypeResolver.isSupported(originalFileName)) {
+            throw new BadRequestException("Unsupported file type. Allowed: pdf, mp4, mov, avi, mkv.");
         }
 
-        log.debug("Uploading file '{}' with sectionId '{}'", fileName, sectionId);
-        blobStorageService.uploadFile(fileName, file.getInputStream(), file.getSize(), sectionId);
-        return ResponseEntity.ok("Uploaded: " + fileName);
+        log.debug("Uploading file '{}' with sectionId '{}'", originalFileName, sectionId);
+        blobStorageService.uploadFile(
+                originalFileName, file.getInputStream(), file.getSize(), sectionId);
+
+        // Return both names so the caller can display the original and reference by generated
+        return ResponseEntity.ok(Map.of(
+                "originalName", originalFileName
+        ));
     }
 
     // -------------------------------------------------------------------------
