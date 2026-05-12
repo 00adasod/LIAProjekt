@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import se.liaprojekt.controller.util.SupportedMediaTypeResolver;
@@ -102,8 +103,9 @@ public class BlobStorageController {
     @GetMapping("/download/{fileName:.+}")
     public ResponseEntity<Void> download(@PathVariable String fileName) {
         log.debug("Generating download URL for '{}'", fileName);
+        String generatedFileName = blobStorageService.resolveFileName(fileName);
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(blobStorageService.generateDownloadUrl(fileName))
+                .location(blobStorageService.generateDownloadUrl(generatedFileName))
                 .build();
     }
 
@@ -131,12 +133,14 @@ public class BlobStorageController {
             @PathVariable String fileName,
             @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) {
 
-        if (!mediaTypeResolver.isVideo(fileName)) {
+        String generatedFileName = blobStorageService.resolveFileName(fileName);
+
+        if (!mediaTypeResolver.isVideo(generatedFileName)) {
             return ResponseEntity.badRequest().build();
         }
 
-        MediaType contentType = mediaTypeResolver.resolve(fileName);
-        long fileSize = blobStorageService.getBlobSize(fileName);
+        MediaType contentType = mediaTypeResolver.resolve(generatedFileName);
+        long fileSize = blobStorageService.getBlobSize(generatedFileName);
 
         // Default to full file if no Range header is provided
         long start = 0;
@@ -155,10 +159,10 @@ public class BlobStorageController {
         final long rangeStart = start;
         final long rangeLength = end - start + 1;
 
-        log.debug("Streaming '{}' bytes {}-{}/{}", fileName, rangeStart, end, fileSize);
+        log.debug("Streaming '{}' bytes {}-{}/{}", generatedFileName, rangeStart, end, fileSize);
 
         StreamingResponseBody body = outputStream ->
-                blobStorageService.streamFile(fileName, outputStream, rangeStart, rangeLength);
+                blobStorageService.streamFile(generatedFileName, outputStream, rangeStart, rangeLength);
 
         return ResponseEntity
                 .status(rangeHeader != null ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK)
@@ -183,7 +187,8 @@ public class BlobStorageController {
     @DeleteMapping("/{fileName:.+}")
     public ResponseEntity<String> delete(@PathVariable String fileName) {
         log.debug("Deleting file '{}'", fileName);
-        blobStorageService.deleteFile(fileName);
+        String generatedFileName = blobStorageService.resolveFileName(fileName);
+        blobStorageService.deleteFile(generatedFileName);
         return ResponseEntity.ok("Deleted: " + fileName);
     }
 
@@ -231,7 +236,8 @@ public class BlobStorageController {
     @GetMapping("/{fileName:.+}/tags")
     public ResponseEntity<Map<String, String>> getTags(@PathVariable String fileName) {
         log.debug("Fetching tags for '{}'", fileName);
-        return ResponseEntity.ok(blobStorageService.getFileTags(fileName));
+        String generatedFileName = blobStorageService.resolveFileName(fileName);
+        return ResponseEntity.ok(blobStorageService.getFileTags(generatedFileName));
     }
 
     /**
@@ -247,7 +253,8 @@ public class BlobStorageController {
             @PathVariable String fileName,
             @RequestParam String sectionId) {
         log.debug("Updating sectionId tag for '{}' to '{}'", fileName, sectionId);
-        blobStorageService.updateSectionId(fileName, sectionId);
+        String generatedFileName = blobStorageService.resolveFileName(fileName);
+        blobStorageService.updateSectionId(generatedFileName, sectionId);
         return ResponseEntity.ok("Updated sectionId for: " + fileName);
     }
 }

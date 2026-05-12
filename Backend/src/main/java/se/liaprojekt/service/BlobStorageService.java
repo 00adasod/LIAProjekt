@@ -6,7 +6,6 @@ import com.azure.storage.blob.models.*;
 import com.azure.storage.blob.sas.BlobSasPermission;
 import com.azure.storage.blob.sas.BlobServiceSasSignatureValues;
 import com.azure.storage.common.StorageSharedKeyCredential;
-import com.microsoft.graph.models.partners.billing.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -106,7 +105,6 @@ public class BlobStorageService {
      * @param data      Input stream of file bytes
      * @param length    Total byte length of the file
      * @param sectionId Optional section identifier to tag the blob with; may be null
-     * @return The generated UUID-based filename the blob was stored under
      */
     public void uploadFile(String originalFileName, InputStream data,
                            long length, String sectionId) {
@@ -142,14 +140,12 @@ public class BlobStorageService {
      * The client is redirected to this URL and retrieves the file directly from the CDN,
      * avoiding proxying bytes through the application server.
      *
-     * @param originalFileName Filename including extension
+     * @param fileName Filename including extension
      * @return Absolute URI the client should be redirected to
      * @throws IllegalStateException if the generated URL is not absolute
      */
-    public URI generateDownloadUrl(String originalFileName) {
+    public URI generateDownloadUrl(String fileName) {
         try {
-            String fileName = resolveFileName(originalFileName);
-
             String sasToken = generateSasToken(
                     fileName, new BlobSasPermission().setReadPermission(true));
             String containerName = resolveContainerName(fileName);
@@ -173,16 +169,14 @@ public class BlobStorageService {
      * Streams a byte range of a video file directly from blob storage to the output stream.
      * Used to support HTTP range requests, enabling seeking and partial buffering in video players.
      *
-     * @param originalFileName     Filename including extension
+     * @param fileName     Filename including extension
      * @param outputStream Stream to write the byte range into
      * @param offset       Start byte position (inclusive)
      * @param length       Number of bytes to read from the offset
      */
-    public void streamFile(String originalFileName, OutputStream outputStream,
+    public void streamFile(String fileName, OutputStream outputStream,
                            long offset, long length) {
         try {
-            String fileName = resolveFileName(originalFileName);
-
             BlobRange range = new BlobRange(offset, length);
 
             // Retry up to 3 times on transient network errors mid-stream
@@ -202,13 +196,11 @@ public class BlobStorageService {
      * Returns the total size in bytes of a blob. Used by the stream endpoint
      * to build the {@code Content-Range} response header.
      *
-     * @param originalFileName Filename including extension
+     * @param fileName Filename including extension
      * @return Blob size in bytes
      */
-    public long getBlobSize(String originalFileName) {
+    public long getBlobSize(String fileName) {
         try {
-            String fileName = resolveFileName(originalFileName);
-
             return resolveContainer(fileName)
                     .getBlobClient(fileName)
                     .getProperties()
@@ -221,12 +213,10 @@ public class BlobStorageService {
     /**
      * Deletes a blob from its container.
      *
-     * @param originalFileName Filename including extension
+     * @param fileName Filename including extension
      */
-    public void deleteFile(String originalFileName) {
+    public void deleteFile(String fileName) {
         try {
-            String fileName = resolveFileName(originalFileName);
-
             sasClient(fileName, new BlobSasPermission().setDeletePermission(true))
                     .delete();
         } catch (BlobStorageException ex) {
@@ -299,13 +289,11 @@ public class BlobStorageService {
     /**
      * Retrieves all tags for a given blob as a key-value map.
      *
-     * @param originalFileName Filename including extension
+     * @param fileName Filename including extension
      * @return Map of tag key-value pairs (e.g. {"sectionId": "42"})
      */
-    public Map<String, String> getFileTags(String originalFileName) {
+    public Map<String, String> getFileTags(String fileName) {
         try {
-            String fileName = resolveFileName(originalFileName);
-
             return resolveContainer(fileName)
                     .getBlobClient(fileName)
                     .getTags();
@@ -318,19 +306,43 @@ public class BlobStorageService {
      * Updates the {@code sectionId} tag on an existing blob.
      * All other existing tags are preserved.
      *
-     * @param originalFileName  Filename including extension
+     * @param fileName  Filename including extension
      * @param sectionId New section identifier value
      */
-    public void updateSectionId(String originalFileName, String sectionId) {
+    public void updateSectionId(String fileName, String sectionId) {
         try {
-            String fileName = resolveFileName(originalFileName);
-
             BlobClient client = resolveContainer(fileName).getBlobClient(fileName);
 
             // Fetch and merge existing tags to avoid overwriting unrelated tag entries
             Map<String, String> existing = client.getTags();
             existing.put("sectionId", sectionId);
             client.setTags(existing);
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    /**
+     * Resolves a user-facing original filename to the internal UUID-based filename
+     * by querying the blob tag index for a matching {@code originalName} tag.
+     *
+     * <p>Searches both containers and returns the first match. Throws a
+     * {@link BlobOperationException} with status 404 if no match is found.
+     *
+     * @param originalName The original filename as supplied by the user
+     * @return The internal UUID-based filename the blob is stored under
+     * @throws BlobOperationException if no blob with the given originalName tag exists
+     */
+    public String resolveFileName(String originalName) {
+        try {
+            String query = "\"originalName\" = '%s'".formatted(originalName);
+
+            return Stream.of(pdfContainerClient, videoContainerClient)
+                    .flatMap(container -> container.findBlobsByTags(query).stream())
+                    .map(TaggedBlobItem::getName)
+                    .findFirst()
+                    .orElseThrow(() -> new BlobOperationException(
+                            "No file found with name: " + originalName, 404, "BlobNotFound"));
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }
@@ -449,32 +461,6 @@ public class BlobStorageService {
                 ex.getStatusCode(),
                 ex.getErrorCode() != null ? ex.getErrorCode().toString() : "unknown"
         );
-    }
-
-    /**
-     * Resolves a user-facing original filename to the internal UUID-based filename
-     * by querying the blob tag index for a matching {@code originalName} tag.
-     *
-     * <p>Searches both containers and returns the first match. Throws a
-     * {@link BlobOperationException} with status 404 if no match is found.
-     *
-     * @param originalName The original filename as supplied by the user
-     * @return The internal UUID-based filename the blob is stored under
-     * @throws BlobOperationException if no blob with the given originalName tag exists
-     */
-    private String resolveFileName(String originalName) {
-        try {
-            String query = "\"originalName\" = '%s'".formatted(originalName);
-
-            return Stream.of(pdfContainerClient, videoContainerClient)
-                    .flatMap(container -> container.findBlobsByTags(query).stream())
-                    .map(TaggedBlobItem::getName)
-                    .findFirst()
-                    .orElseThrow(() -> new BlobOperationException(
-                            "No file found with name: " + originalName, 404, "BlobNotFound"));
-        } catch (BlobStorageException ex) {
-            throw translateException(ex);
-        }
     }
 
     /**
