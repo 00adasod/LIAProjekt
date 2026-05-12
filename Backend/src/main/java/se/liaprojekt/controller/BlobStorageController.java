@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/api/files")
+@RequestMapping("/api/material")
 public class BlobStorageController {
     private static final long CHUNK_SIZE = 10 * 1024 * 1024; // 10MB chunks
     private static final Logger log = LoggerFactory.getLogger(BlobStorageService.class);
