@@ -7,6 +7,10 @@ export default function App({ msalInstance }: { msalInstance: IPublicClientAppli
 
     const account = msalInstance.getActiveAccount();
 
+    if (!account) {
+        console.log("No active account - user likely not redirected properly");
+    }
+
     return (
         <div>
             {!account && <LoginButton instance={msalInstance} />}
