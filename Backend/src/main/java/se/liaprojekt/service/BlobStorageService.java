@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import se.liaprojekt.exception.BlobOperationException;
+import se.liaprojekt.exception.BlobStorageExceptionHandler;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,14 +29,31 @@ public class BlobStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(BlobStorageService.class);
 
+    /** Default chunk size for streaming responses: 10MB. */
+    private static final long CHUNK_SIZE = 10 * 1024 * 1024;
+
     private final BlobContainerClient pdfContainerClient;
     private final BlobContainerClient videoContainerClient;
+    private final StorageSharedKeyCredential sharedKeyCredential;
     private final String accountName;
     private final String pdfContainerName;
     private final String videoContainerName;
     private final long sasExpiryMinutes;
     private final String frontDoorEndpoint;
 
+    /**
+     * Constructs the service, initialises both container clients, and validates
+     * that both containers exist in Azure before the application starts accepting requests.
+     *
+     * @param accountName       Azure storage account name
+     * @param accountKey        Azure storage account key (injected from environment variable)
+     * @param pdfContainerName  Name of the container holding PDF files
+     * @param videoContainerName Name of the container holding video files
+     * @param sasExpiryMinutes  Lifetime of generated SAS tokens in minutes
+     * @param frontDoorEndpoint Absolute HTTPS URL of the Azure Front Door endpoint
+     * @throws IllegalStateException if the Front Door endpoint is not absolute HTTPS,
+     *                               or if either container does not exist
+     */
     public BlobStorageService(
             @Value("${spring.cloud.azure.storage.blob.account-name}") String accountName,
             @Value("${spring.cloud.azure.storage.account-key}") String accountKey,
@@ -55,9 +73,12 @@ public class BlobStorageService {
         this.pdfContainerName = pdfContainerName;
         this.videoContainerName = videoContainerName;
         this.sasExpiryMinutes = sasExpiryMinutes;
-        this.frontDoorEndpoint = frontDoorEndpoint.replaceAll("/+$", "");
-        StorageSharedKeyCredential sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
 
+        // Strip any accidental trailing slash to avoid double-slash URLs
+        this.frontDoorEndpoint = frontDoorEndpoint.replaceAll("/+$", "");
+        this.sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+
+        // A single BlobServiceClient is reused to build both container clients
         BlobServiceClient serviceClient = new BlobServiceClientBuilder()
                 .endpoint("https://%s.blob.core.windows.net".formatted(accountName))
                 .credential(sharedKeyCredential)
@@ -66,73 +87,37 @@ public class BlobStorageService {
         this.pdfContainerClient = serviceClient.getBlobContainerClient(pdfContainerName);
         this.videoContainerClient = serviceClient.getBlobContainerClient(videoContainerName);
 
+        // Fail fast on startup if either container is misconfigured or missing
         validateContainer(pdfContainerClient, pdfContainerName);
         validateContainer(videoContainerClient, videoContainerName);
     }
 
-    private void validateContainer(BlobContainerClient client, String name) {
-        if (!client.exists()) {
-            throw new IllegalStateException(
-                    "Container '%s' does not exist.".formatted(name));
-        }
-    }
+    // -------------------------------------------------------------------------
+    // Public operations
+    // -------------------------------------------------------------------------
 
-    // Resolves the correct container client based on file extension
-    private BlobContainerClient resolveContainer(String fileName) {
-        String ext = getExtension(fileName);
-        return switch (ext) {
-            case "pdf"            -> pdfContainerClient;
-            case "mp4", "mov",
-                 "avi", "mkv"    -> videoContainerClient;
-            default -> throw new BlobOperationException(
-                    "Unsupported file type: " + ext, 400, "UnsupportedFileType");
-        };
-    }
-
-    // Resolves the correct container name based on file extension (for URL building)
-    private String resolveContainerName(String fileName) {
-        String ext = getExtension(fileName);
-        return switch (ext) {
-            case "pdf"            -> pdfContainerName;
-            case "mp4", "mov",
-                 "avi", "mkv"    -> videoContainerName;
-            default -> throw new BlobOperationException(
-                    "Unsupported file type: " + ext, 400, "UnsupportedFileType");
-        };
-    }
-
-    private String getExtension(String fileName) {
-        int dot = fileName.lastIndexOf('.');
-        return dot >= 0 ? fileName.substring(dot + 1).toLowerCase() : "";
-    }
-
-    private String generateSasToken(String fileName, BlobSasPermission permissions) {
-        BlobServiceSasSignatureValues sasValues = new BlobServiceSasSignatureValues(
-                OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(sasExpiryMinutes),
-                permissions)
-                .setStartTime(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(5));
-
-        return resolveContainer(fileName).getBlobClient(fileName).generateSas(sasValues);
-    }
-
-    private BlobClient sasClient(String fileName, BlobSasPermission permissions) {
-        String sasToken = generateSasToken(fileName, permissions);
-        String containerName = resolveContainerName(fileName);
-        String sasUrl = "https://%s.blob.core.windows.net/%s/%s?%s"
-                .formatted(accountName, containerName, fileName, sasToken);
-        return new BlobClientBuilder().endpoint(sasUrl).buildClient();
-    }
-
+    /**
+     * Uploads a file to the appropriate container based on its extension.
+     * If a {@code sectionId} is provided, it is written as a blob tag after upload,
+     * allowing files to be queried by section later.
+     *
+     * @param fileName  Original filename including extension (e.g. "lecture.pdf")
+     * @param data      Input stream of file bytes
+     * @param length    Total byte length of the file
+     * @param sectionId Optional section identifier to tag the blob with; may be null
+     */
     public void uploadFile(String fileName, InputStream data,
                            long length, String sectionId) {
         try {
+            // SAS token requires both write and tag permissions for this operation
             BlobClient client = sasClient(fileName,
                     new BlobSasPermission()
                             .setWritePermission(true)
                             .setTagsPermission(true));
 
-            client.upload(data, length, true);
+            client.upload(data, length, true); // true = overwrite if exists
 
+            // Tags are set in a separate call after upload; the blob must exist first
             if (sectionId != null) {
                 client.setTags(Map.of("sectionId", sectionId));
             }
@@ -141,6 +126,15 @@ public class BlobStorageService {
         }
     }
 
+    /**
+     * Generates a short-lived SAS URL pointing to the Azure Front Door CDN endpoint.
+     * The client is redirected to this URL and retrieves the file directly from the CDN,
+     * avoiding proxying bytes through the application server.
+     *
+     * @param fileName Filename including extension
+     * @return Absolute URI the client should be redirected to
+     * @throws IllegalStateException if the generated URL is not absolute
+     */
     public URI generateDownloadUrl(String fileName) {
         try {
             String sasToken = generateSasToken(
@@ -153,7 +147,8 @@ public class BlobStorageService {
             URI uri = URI.create(rawUrl);
             if (!uri.isAbsolute()) {
                 throw new IllegalStateException(
-                        "Generated download URL is not absolute: '%s'.".formatted(rawUrl));
+                        "Generated download URL is not absolute: '%s'. Check frontdoor-endpoint config."
+                                .formatted(rawUrl));
             }
             return uri;
         } catch (BlobStorageException ex) {
@@ -161,34 +156,40 @@ public class BlobStorageService {
         }
     }
 
-    public void deleteFile(String fileName) {
+    /**
+     * Streams a byte range of a video file directly from blob storage to the output stream.
+     * Used to support HTTP range requests, enabling seeking and partial buffering in video players.
+     *
+     * @param fileName     Filename including extension
+     * @param outputStream Stream to write the byte range into
+     * @param offset       Start byte position (inclusive)
+     * @param length       Number of bytes to read from the offset
+     */
+    public void streamFile(String fileName, OutputStream outputStream,
+                           long offset, long length) {
         try {
-            sasClient(fileName, new BlobSasPermission().setDeletePermission(true))
-                    .delete();
+            BlobRange range = new BlobRange(offset, length);
+
+            // Retry up to 3 times on transient network errors mid-stream
+            DownloadRetryOptions retryOptions = new DownloadRetryOptions()
+                    .setMaxRetryRequests(3);
+
+            resolveContainer(fileName)
+                    .getBlobClient(fileName)
+                    .downloadStreamWithResponse(
+                            outputStream, range, retryOptions, null, false, null, Context.NONE);
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }
     }
 
-    public List<String> listFiles(Set<String> allowedExtensions) {
-        try {
-            Stream<String> pdfs = allowedExtensions.stream().anyMatch(e -> e.equals("pdf"))
-                    ? pdfContainerClient.listBlobs().stream().map(BlobItem::getName)
-                    : Stream.empty();
-
-            Stream<String> videos = allowedExtensions.stream().anyMatch(
-                    e -> Set.of("mp4", "mov", "avi", "mkv").contains(e))
-                    ? videoContainerClient.listBlobs().stream().map(BlobItem::getName)
-                    : Stream.empty();
-
-            return Stream.concat(pdfs, videos)
-                    .filter(name -> allowedExtensions.contains(getExtension(name)))
-                    .collect(Collectors.toList());
-        } catch (BlobStorageException ex) {
-            throw translateException(ex);
-        }
-    }
-
+    /**
+     * Returns the total size in bytes of a blob. Used by the stream endpoint
+     * to build the {@code Content-Range} response header.
+     *
+     * @param fileName Filename including extension
+     * @return Blob size in bytes
+     */
     public long getBlobSize(String fileName) {
         try {
             return resolveContainer(fileName)
@@ -200,11 +201,65 @@ public class BlobStorageService {
         }
     }
 
+    /**
+     * Deletes a blob from its container.
+     *
+     * @param fileName Filename including extension
+     */
+    public void deleteFile(String fileName) {
+        try {
+            sasClient(fileName, new BlobSasPermission().setDeletePermission(true))
+                    .delete();
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    /**
+     * Lists blobs across both containers, filtered to only include files whose
+     * extension is present in {@code allowedExtensions}.
+     *
+     * <p>Only the containers relevant to the requested extensions are queried —
+     * e.g. {@code ?type=pdf} will not hit the video container at all.
+     *
+     * @param allowedExtensions Set of lowercase extensions to include (e.g. "pdf", "mp4")
+     * @return Combined list of matching filenames from both containers
+     */
+    public List<String> listFiles(Set<String> allowedExtensions) {
+        try {
+            Stream<String> pdfs = allowedExtensions.stream().anyMatch(e -> e.equals("pdf"))
+                    ? pdfContainerClient.listBlobs().stream().map(BlobItem::getName)
+                    : Stream.empty();
+
+            Stream<String> videos = allowedExtensions.stream()
+                    .anyMatch(e -> Set.of("mp4", "mov", "avi", "mkv").contains(e))
+                    ? videoContainerClient.listBlobs().stream().map(BlobItem::getName)
+                    : Stream.empty();
+
+            return Stream.concat(pdfs, videos)
+                    .filter(name -> allowedExtensions.contains(getExtension(name)))
+                    .collect(Collectors.toList());
+        } catch (BlobStorageException ex) {
+            throw translateException(ex);
+        }
+    }
+
+    /**
+     * Queries both containers for blobs tagged with the given {@code sectionId}.
+     * Uses Azure's server-side tag index — only blobs matching the tag are returned,
+     * no client-side filtering needed.
+     *
+     * <p>Note: tag indexing is eventually consistent; a file uploaded with a sectionId
+     * tag may not appear in results for a few seconds after upload.
+     *
+     * @param sectionId The section identifier to filter by
+     * @return Filenames of all blobs tagged with this sectionId, across both containers
+     */
     public List<String> listFilesBySectionId(String sectionId) {
         try {
+            // Azure tag query syntax uses double-quoted key and single-quoted value
             String query = "\"sectionId\" = '%s'".formatted(sectionId);
 
-            // Query runs across both containers and returns matching blob names
             Stream<String> fromPdf = pdfContainerClient
                     .findBlobsByTags(query).stream()
                     .map(TaggedBlobItem::getName);
@@ -213,13 +268,18 @@ public class BlobStorageService {
                     .findBlobsByTags(query).stream()
                     .map(TaggedBlobItem::getName);
 
-            return Stream.concat(fromPdf, fromVideo)
-                    .collect(Collectors.toList());
+            return Stream.concat(fromPdf, fromVideo).collect(Collectors.toList());
         } catch (BlobStorageException ex) {
             throw translateException(ex);
         }
     }
 
+    /**
+     * Retrieves all tags for a given blob as a key-value map.
+     *
+     * @param fileName Filename including extension
+     * @return Map of tag key-value pairs (e.g. {"sectionId": "42"})
+     */
     public Map<String, String> getFileTags(String fileName) {
         try {
             return resolveContainer(fileName)
@@ -230,9 +290,18 @@ public class BlobStorageService {
         }
     }
 
+    /**
+     * Updates the {@code sectionId} tag on an existing blob.
+     * All other existing tags are preserved.
+     *
+     * @param fileName  Filename including extension
+     * @param sectionId New section identifier value
+     */
     public void updateSectionId(String fileName, String sectionId) {
         try {
             BlobClient client = resolveContainer(fileName).getBlobClient(fileName);
+
+            // Fetch and merge existing tags to avoid overwriting unrelated tag entries
             Map<String, String> existing = client.getTags();
             existing.put("sectionId", sectionId);
             client.setTags(existing);
@@ -241,20 +310,112 @@ public class BlobStorageService {
         }
     }
 
-    public void streamFile(String fileName, OutputStream outputStream,
-                           long offset, long length) {
-        try {
-            BlobRange range = new BlobRange(offset, length);
-            DownloadRetryOptions retryOptions = new DownloadRetryOptions().setMaxRetryRequests(3);
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
 
-            resolveContainer(fileName)
-                    .getBlobClient(fileName)
-                    .downloadStreamWithResponse(outputStream, range, retryOptions, null, false, null, Context.NONE);
-        } catch (BlobStorageException ex) {
-            throw translateException(ex);
+    /**
+     * Validates that a container exists in Azure, failing fast on startup if not.
+     *
+     * @param client Container client to check
+     * @param name   Container name used in the error message
+     */
+    private void validateContainer(BlobContainerClient client, String name) {
+        if (!client.exists()) {
+            throw new IllegalStateException(
+                    "Container '%s' does not exist.".formatted(name));
         }
     }
 
+    /**
+     * Resolves the correct {@link BlobContainerClient} for the given filename
+     * based on its file extension.
+     *
+     * @param fileName Filename including extension
+     * @return The PDF or video container client
+     * @throws BlobOperationException if the extension is not supported
+     */
+    private BlobContainerClient resolveContainer(String fileName) {
+        return switch (getExtension(fileName)) {
+            case "pdf"                    -> pdfContainerClient;
+            case "mp4", "mov", "avi",
+                 "mkv"                   -> videoContainerClient;
+            default -> throw new BlobOperationException(
+                    "Unsupported file type: " + getExtension(fileName), 400, "UnsupportedFileType");
+        };
+    }
+
+    /**
+     * Resolves the container name string for a filename, used when constructing
+     * SAS URLs where the name is needed as a path segment rather than a client object.
+     *
+     * @param fileName Filename including extension
+     * @return Container name string
+     */
+    private String resolveContainerName(String fileName) {
+        return switch (getExtension(fileName)) {
+            case "pdf"                    -> pdfContainerName;
+            case "mp4", "mov", "avi",
+                 "mkv"                   -> videoContainerName;
+            default -> throw new BlobOperationException(
+                    "Unsupported file type: " + getExtension(fileName), 400, "UnsupportedFileType");
+        };
+    }
+
+    /**
+     * Generates a SAS token scoped to a single blob with the specified permissions.
+     * A 5-minute start-time buffer is applied to tolerate clock skew between
+     * the application server and Azure.
+     *
+     * @param fileName    Filename the token is scoped to
+     * @param permissions Permissions to grant (read, write, delete, tags, etc.)
+     * @return SAS token query string
+     */
+    private String generateSasToken(String fileName, BlobSasPermission permissions) {
+        BlobServiceSasSignatureValues sasValues = new BlobServiceSasSignatureValues(
+                OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(sasExpiryMinutes),
+                permissions)
+                .setStartTime(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(5));
+
+        return resolveContainer(fileName).getBlobClient(fileName).generateSas(sasValues);
+    }
+
+    /**
+     * Builds a {@link BlobClient} authenticated via a pre-signed SAS URL.
+     * The client itself holds no credential — Azure validates the SAS token
+     * embedded in the URL on each request.
+     *
+     * @param fileName    Filename to build the client for
+     * @param permissions Permissions to include in the SAS token
+     * @return SAS-authenticated blob client
+     */
+    private BlobClient sasClient(String fileName, BlobSasPermission permissions) {
+        String sasToken = generateSasToken(fileName, permissions);
+        String containerName = resolveContainerName(fileName);
+        String sasUrl = "https://%s.blob.core.windows.net/%s/%s?%s"
+                .formatted(accountName, containerName, fileName, sasToken);
+        return new BlobClientBuilder().endpoint(sasUrl).buildClient();
+    }
+
+    /**
+     * Extracts the lowercase file extension from a filename.
+     *
+     * @param fileName Filename including extension
+     * @return Lowercase extension without leading dot, or empty string if none found
+     */
+    private String getExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return dot >= 0 ? fileName.substring(dot + 1).toLowerCase() : "";
+    }
+
+    /**
+     * Translates a {@link BlobStorageException} from the Azure SDK into a
+     * {@link BlobOperationException} that Spring's {@link BlobStorageExceptionHandler}
+     * can intercept and map to an appropriate HTTP response.
+     *
+     * @param ex The Azure SDK exception
+     * @return A Spring-friendly runtime exception with status code and error code
+     */
     private BlobOperationException translateException(BlobStorageException ex) {
         log.error("Azure Blob Storage error — HTTP {}: {}", ex.getStatusCode(), ex.getMessage());
         return new BlobOperationException(
