@@ -9,14 +9,13 @@ import se.liaprojekt.model.EmailEvent;
 
 /**
  * Skickar email-events till Azure Service Bus.
- * Detta ersätter direkt email-sändning.
  */
 @Service
 @RequiredArgsConstructor
 public class EmailEventPublisher {
 
     private final ServiceBusSenderClient senderClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     public void publish(EmailEvent event) {
 
@@ -29,6 +28,6 @@ public class EmailEventPublisher {
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to publish email event", e);
-        }
+        } // Fixa exception till GlobalExceptionHandler
     }
 }

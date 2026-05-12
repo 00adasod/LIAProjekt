@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
  * Ingen connection string används.
  */
 @Configuration
-public class ServiceBusConfig {
+public class ServiceBusProducerConfig {
 
     private static final String NAMESPACE =
             "sb-app-dev01.servicebus.windows.net";
