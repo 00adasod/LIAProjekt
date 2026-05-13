@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import se.liaprojekt.model.EmailEvent;
 import se.liaprojekt.service.GraphService;
+import se.liaprojekt.service.TokenService;
 
 @Component
 public class EmailMessageHandler {
@@ -18,12 +19,14 @@ public class EmailMessageHandler {
 
     private final GraphService graphService;
     private final ObjectMapper objectMapper;
+    private final TokenService tokenService;
 
     public EmailMessageHandler(GraphService graphService,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper, TokenService tokenService) {
 
         this.graphService = graphService;
         this.objectMapper = objectMapper;
+        this.tokenService = tokenService; // Ta bort innan push till dev ENDAST FÖR FELSÖKNING
     }
 
     /**
@@ -45,6 +48,7 @@ public class EmailMessageHandler {
             EmailEvent event =
                     objectMapper.readValue(body, EmailEvent.class);
 
+            tokenService.printToken(); // Ta bort innan push till dev ENDAST FÖR FELSÖKNING
             graphService.sendEmail(
                     "no-reply@CampusMolndal.onmicrosoft.com",
                     event.getTo(),
