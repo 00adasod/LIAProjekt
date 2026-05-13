@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { useMsal } from "@azure/msal-react";
 import type { User, UserRole, UserResponse } from "../types";
+import { getUsers } from "../api/api";
 import { pad } from "../components/Shared";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -37,29 +39,30 @@ function mapUser(u: UserResponse): User {
         id:              u.id,
         name:            u.displayName,
         email:           u.mail,
-        role:            normaliseRole(u.role),
+        role:            normaliseRole(u.Role),
         coursesEnrolled: 0,   // not provided by the API; update when available
     };
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
+// instance comes from useMsal() in the component and is passed down here
+// so the hook stays testable and doesn't reach for context itself
 function useUsers() {
+    const { instance } = useMsal();
     const [users, setUsers]     = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError]     = useState<string | null>(null);
 
     useEffect(() => {
-        // Replace this URL with your real API endpoint
-        fetch("http://localhost:8080/api/users/all")
-            .then((res) => {
-                if (!res.ok) throw new Error(`Server error: ${res.status}`);
-                return res.json() as Promise<UserResponse[]>;
+        getUsers(instance)
+            .then((data) => {
+                if (!data) throw new Error("Tomt svar från servern");
+                setUsers((data as UserResponse[]).map(mapUser));
             })
-            .then((data) => setUsers(data.map(mapUser)))
             .catch((err: Error) => setError(err.message))
             .finally(() => setLoading(false));
-    }, []); // runs once on mount
+    }, [instance]); // re-fetches if the logged-in account ever changes
 
     return { users, loading, error };
 }

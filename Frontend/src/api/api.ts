@@ -40,14 +40,14 @@ export async function getHealth(instance: IPublicClientApplication) {
     );
 }
 
-export async function getGraphUsers(instance: IPublicClientApplication) {
+export async function getUsers(instance: IPublicClientApplication) {
     if (!BASE_URL) return null;
 
     const token = await getAccessToken(instance);
 
     return safeFetch(
-        `${BASE_URL}/graph/users`,
+        `${BASE_URL}/api/users/all`,
         token,
-        "Failed graph users request"
+        "Failed to fetch users"
     );
 }
