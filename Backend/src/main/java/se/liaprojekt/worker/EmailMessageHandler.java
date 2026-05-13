@@ -3,15 +3,28 @@ package se.liaprojekt.worker;
 import com.azure.messaging.servicebus.ServiceBusErrorContext;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessageContext;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import se.liaprojekt.model.EmailEvent;
+import se.liaprojekt.service.GraphService;
 
 @Component
 public class EmailMessageHandler {
 
     private static final Logger log =
             LoggerFactory.getLogger(EmailMessageHandler.class);
+
+    private final GraphService graphService;
+    private final ObjectMapper objectMapper;
+
+    public EmailMessageHandler(GraphService graphService,
+                               ObjectMapper objectMapper) {
+
+        this.graphService = graphService;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * Hanterar inkommande messages
@@ -25,7 +38,28 @@ public class EmailMessageHandler {
         log.info("Body: {}", message.getBody());
 
         // TODO: din business logic här
-        // t.ex. skicka email, spara i DB etc.
+        try {
+
+            String body = message.getBody().toString();
+
+            EmailEvent event =
+                    objectMapper.readValue(body, EmailEvent.class);
+
+            graphService.sendEmail(
+                    "no-reply@CampusMolndal.onmicrosoft.com",
+                    event.getTo(),
+                    event.getSubject(),
+                    event.getBody()
+            );
+
+            log.info("✅ Email sent to {}", event.getTo());
+
+        } catch (Exception e) {
+
+            log.error("❌ Failed processing Service Bus message", e);
+
+            throw new RuntimeException(e);
+        }
     }
 
     /**
