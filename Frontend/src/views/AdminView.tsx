@@ -39,7 +39,7 @@ function mapUser(u: UserResponse): User {
         id:              u.id,
         name:            u.displayName,
         email:           u.mail,
-        role:            normaliseRole(u.Role),
+        role:            normaliseRole(u.role),
         coursesEnrolled: 0,   // not provided by the API; update when available
     };
 }
